@@ -1,0 +1,109 @@
+package main
+
+import (
+	"bufio"
+	"fmt"
+	"math"
+	"os"
+	"strconv"
+)
+
+const FileToUse = "input.txt"
+
+//const FileToUse = "testcase.txt"
+
+func parseRawInstruction(rawInst string) (byte, int) {
+	if len(rawInst) < 2 {
+		panic("lenght must be greater than 2")
+	}
+
+	rotation := rawInst[0]
+	if rotation != 'L' && rotation != 'R' {
+		panic("direction must be L or R")
+	}
+
+	rawDistance := rawInst[1:]
+	distance, err := strconv.Atoi(rawDistance)
+	if err != nil {
+		panic(fmt.Errorf("failed to convert raw distance string (%s) into integer: %w", rawDistance, err))
+	}
+
+	return rotation, distance
+}
+
+func firstPart() int {
+	current := 50
+
+	totalZero := 0
+
+	inputFile, err := os.Open(FileToUse)
+	if err != nil {
+		panic(fmt.Errorf("failed to open %s: %w", FileToUse, err))
+	}
+	defer inputFile.Close()
+
+	fileScanner := bufio.NewScanner(inputFile)
+	// INFO: if the input file contians line larger than 64kB
+	// consider increasing scanner's buffer with '.Buffer'
+
+	for fileScanner.Scan() {
+		rawInst := fileScanner.Text()
+
+		rotation, distance := parseRawInstruction(rawInst)
+
+		switch rotation {
+		case 'L':
+			current = (current - distance) % 100
+		case 'R':
+			current = (current + distance) % 100
+		}
+
+		if current == 0 {
+			totalZero += 1
+		}
+	}
+
+	return totalZero
+}
+
+func secondPart() int {
+	current := 50
+
+	totalZero := 0
+
+	inputFile, err := os.Open(FileToUse)
+	if err != nil {
+		panic(fmt.Errorf("failed to open %s: %w", FileToUse, err))
+	}
+	defer inputFile.Close()
+
+	fileScanner := bufio.NewScanner(inputFile)
+	// INFO: if the input file contians line larger than 64kB
+	// consider increasing scanner's buffer with '.Buffer'
+
+	for fileScanner.Scan() {
+		rawInst := fileScanner.Text()
+
+		rotation, distance := parseRawInstruction(rawInst)
+
+		switch rotation {
+		case 'L':
+			current = (current - distance) % 100
+		case 'R':
+			current = (current + distance) % 100
+		default:
+			panic(fmt.Errorf("unknown rotation (%s)", string(rotation)))
+		}
+
+		if current == 0 {
+			totalZero += 1
+		}
+	}
+
+	return totalZero
+}
+
+func main() {
+	fmt.Println("first part", firstPart())
+	fmt.Println("second part", secondPart())
+}
