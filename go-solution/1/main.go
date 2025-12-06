@@ -107,7 +107,6 @@ func secondPart() int {
 
 		relativeCurrent := convertCurrentRelativity(current, rotation)
 
-		// these two line might be grouped into single instruction in instruction level
 		zeroHitsCount += (relativeCurrent + distance) / 100
 		relativeCurrent = (relativeCurrent + distance) % 100
 
