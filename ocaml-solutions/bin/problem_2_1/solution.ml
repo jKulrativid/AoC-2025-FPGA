@@ -1,12 +1,12 @@
-(*let file_to_run = "problem_2_test.txt"*)
-let file_to_run = "problem_2_input.txt"
+(*let file_to_run = "inputs/problem_2_test.txt"*)
+let file_to_run = "inputs/problem_2_real.txt"
 
 (* util funcs *)
 let string_list_to_string l = List.filter (fun s -> s <> "") l |> String.concat "\n"
 
 let read_lines_modern (filename : string) =
   let ic = open_in filename in
-  let rec loop prev : string list =
+  let rec loop () : string list =
     match In_channel.input_line ic with
     | Some line -> line :: loop ()
     | None -> []
@@ -24,7 +24,7 @@ let is_valid_id (id : string) : bool =
   let len = String.length id in
   match len mod 2 with
   | 1 -> true
-  | otherwise ->
+  | _ ->
     let half_len = len / 2 in
     let first_half = String.sub id 0 half_len in
     let second_half = String.sub id half_len half_len in
@@ -52,9 +52,11 @@ let get_sum_of_invalid_ids_from_id_ranges (ranges : (string * string) list) : st
   |> string_of_int
 ;;
 
-read_lines_modern file_to_run
-|> List.hd
-|> String.split_on_char ','
-|> List.map (fun raw_str -> Scanf.sscanf raw_str "%[^-]-%s" (fun a b -> a, b))
-|> get_sum_of_invalid_ids_from_id_ranges
-|> print_endline
+let solve () =
+  read_lines_modern file_to_run
+  |> List.hd
+  |> String.split_on_char ','
+  |> List.map (fun raw_str -> Scanf.sscanf raw_str "%[^-]-%s" (fun a b -> a, b))
+  |> get_sum_of_invalid_ids_from_id_ranges
+  |> print_endline
+;;
