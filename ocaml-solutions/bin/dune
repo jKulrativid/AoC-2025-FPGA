@@ -3,4 +3,4 @@
 (executable
  (public_name ocaml-solutions)
  (name main)
- (libraries ocaml_solutions))
+ (libraries base core stdio))
