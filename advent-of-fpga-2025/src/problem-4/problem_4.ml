@@ -95,7 +95,8 @@ module Forklift = struct
       |> List.concat
       |> List.concat
     in
-    let neighbors_count = List.reduce_exn neighbors ~f:( +: ) in
+    let neighbors_count = uresize (Signal.concat_msb neighbors |> Signal.popcount) 4 in
+    (* let neighbors_count = List.reduce_exn neighbors ~f:( +: ) in *)
     let paper, empty_space = vdd, gnd in
     let is_paper = middle ==:. 1 in
     let is_accessible = neighbors_count <:. 4 in
