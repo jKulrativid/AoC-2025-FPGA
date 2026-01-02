@@ -6,10 +6,11 @@ include Util
 
 let%expect_test "Forklift Test" =
   let module Sim = Cyclesim.With_interface (Forklift.I) (Forklift.O) in
-  let testcases : int list list =
-    [ [ 1; 1; 1; 1; 1; 1; 1; 1; 1 ]
-    ; [ 1; 0; 1; 1; 1; 0; 0; 1; 1 ]
-    ; [ 0; 1; 1; 0; 1; 1; 1; 0; 1 ]
+  let testcases : (int * int * int list) list =
+    [ 3, 3, [ 1; 1; 1; 1; 1; 1; 1; 1; 1 ]
+    ; 3, 3, [ 1; 0; 1; 1; 1; 0; 0; 1; 1 ]
+    ; 3, 3, [ 0; 1; 1; 0; 1; 1; 1; 0; 1 ]
+    ; 4, 3, [ 1; 0; 1; 1; 1; 1; 0; 1; 0; 1; 1; 1 ]
     ]
   in
   let run_cycle ?(n = 0) sim =
@@ -17,17 +18,22 @@ let%expect_test "Forklift Test" =
       Cyclesim.cycle sim
     done
   in
-  let run (tc : int list) =
+  let run ((rows, cols, stream) : int * int * int list) =
     let waves, sim = Waveform.create @@ Sim.create @@ Forklift.create (Scope.create ()) in
     let i = Cyclesim.inputs sim in
-    List.iter tc ~f:(fun din ->
+    List.iter stream ~f:(fun din ->
       i.data_in := Bits.of_int din ~width:1;
-      i.rows := Bits.of_int 3 ~width:Forklift.row_bit_width;
-      i.cols := Bits.of_int 3 ~width:Forklift.col_bit_width;
+      i.rows := Bits.of_int rows ~width:Forklift.row_bit_width;
+      i.cols := Bits.of_int cols ~width:Forklift.col_bit_width;
       i.clear := Bits.gnd;
       run_cycle sim);
+    i.data_in := Bits.of_int zero ~width:1;
     run_cycle ~n:10 sim;
-    Waveform.print ~display_width:200 ~display_height:45 waves
+    Waveform.print
+      ~display_width:200
+      ~display_height:60
+      ~display_rules:[ Hardcaml_waveterm.Display_rule.default ]
+      waves
   in
   List.iter testcases ~f:run;
   [%expect {| |}]
