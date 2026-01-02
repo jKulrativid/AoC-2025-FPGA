@@ -11,7 +11,7 @@
 
 (maintainers "Maintainer Name <maintainer@example.com>")
 
-(license LICENSE)
+(license MIT)
 
 (documentation https://url/to/documentation)
 
@@ -19,7 +19,14 @@
  (name advent-of-fpga-2025)
  (synopsis "A short synopsis")
  (description "A longer description")
- (depends ocaml)
+ (depends
+ (ocaml (>= 4.14.1))          
+ (dune (>= 3.12))             
+ (hardcaml (>= v0.16.0))      
+ (ppx_hardcaml (>= v0.16.0))  
+ (hardcaml_waveterm (>= v0.16.0)) 
+ (core (>= v0.16.0))          
+)
  (tags
   ("add topics" "to describe" your project)))
 

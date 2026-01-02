@@ -1,6 +1,6 @@
 open Base
 open Hardcaml
-open Exercise
+open Exercise.Pwm
 
 let%expect_test "PWM unit test" =
   let module Sim = Cyclesim.With_interface (Pwm.I) (Pwm.O) in
