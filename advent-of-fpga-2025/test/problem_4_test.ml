@@ -17,13 +17,13 @@ let%expect_test "Forklift Test" =
   let run ((rows, cols, stream) : int * int * int list) =
     let waves, sim = Waveform.create @@ Sim.create @@ Forklift.create (Scope.create ()) in
     let i = Cyclesim.inputs sim in
+    (* setup config *)
+    i.rows := Bits.of_int rows ~width:Forklift.row_bit_width;
+    i.cols := Bits.of_int cols ~width:Forklift.col_bit_width;
+    i.clear := Bits.gnd;
     run_cycle sim;
-    (* start first clock *)
     List.iter stream ~f:(fun din ->
       i.data_in := Bits.of_int din ~width:1;
-      i.rows := Bits.of_int rows ~width:Forklift.row_bit_width;
-      i.cols := Bits.of_int cols ~width:Forklift.col_bit_width;
-      i.clear := Bits.gnd;
       run_cycle sim);
     i.data_in := Bits.of_int zero ~width:1;
     run_cycle ~n:10 sim;

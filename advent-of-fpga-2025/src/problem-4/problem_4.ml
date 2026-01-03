@@ -8,24 +8,17 @@ let () = Caller_id.set_mode Full_trace
    Filters the grid to remove accessible paper rolls based on the problem specification.
 *)
 module Forklift = struct
-  let max_row_size = 128
-  let row_bit_width = Int.ceil_log2 max_row_size
-  let col_bit_width = row_bit_width
+  let row_bit_width = 8
+  let col_bit_width = 8
+  let max_row_size = Int.pow 2 row_bit_width - 1
   let offset_bit_width = col_bit_width + 1
-  let window_size = 3
 
   module State = struct
     type t =
       | Idle
-      | Thinking
-    [@@deriving compare, enumerate, sexp_of]
-  end
-
-  module Thinking_phase = struct
-    type t =
-      | Lead_in
-      | Fetch_calc
-      | Calc
+      | ReadIn
+      | ReadCalc
+      | CalcRemaining
     [@@deriving compare, enumerate, sexp_of]
   end
 
@@ -104,10 +97,12 @@ module Forklift = struct
     mux2 (is_paper &: ~:is_accessible) paper empty_space, neighbors_count
   ;;
 
-  let create scope (inputs : _ I.t) : _ O.t =
+  let create _scope (inputs : _ I.t) : _ O.t =
     let open Signal in
     let spec = Reg_spec.create ~clock:inputs.clock ~clear:inputs.clear () in
     let sm = Always.State_machine.create (module State) spec in
+    let num_rows = Always.Variable.reg spec ~width:row_bit_width in
+    let num_cols = Always.Variable.reg spec ~width:col_bit_width in
     let reading_row_idx = Always.Variable.reg spec ~width:row_bit_width in
     let reading_col_idx = Always.Variable.reg spec ~width:col_bit_width in
     let processing_row_idx = Always.Variable.reg spec ~width:row_bit_width in
@@ -120,7 +115,7 @@ module Forklift = struct
     let offset = Always.Variable.reg spec ~width:offset_bit_width in
     let read_addr =
       mux2
-        (reading_col_idx.value ==: inputs.cols -:. 1)
+        (reading_col_idx.value ==: num_cols.value -:. 1)
         (zero col_bit_width)
         (reading_col_idx.value +:. 1)
     in
@@ -161,12 +156,13 @@ module Forklift = struct
     in
     let grid = get_empty_grid spec in
     let is_top_row = processing_row_idx.value ==:. 0 in
-    let is_bottom_row = processing_row_idx.value ==: inputs.rows -:. 1 in
+    let is_bottom_row = processing_row_idx.value ==: num_rows.value -:. 1 in
     let is_left_col = processing_col_idx.value ==:. 0 in
-    let is_right_col = processing_col_idx.value ==: inputs.cols -:. 1 in
+    let is_right_col = processing_col_idx.value ==: num_cols.value -:. 1 in
     let result, dbg_nc =
       remove_accessible grid ~is_top_row ~is_bottom_row ~is_left_col ~is_right_col
     in
+    let setup = Always.(proc [ num_rows <-- inputs.rows; num_cols <-- inputs.cols ]) in
     let shift_grid =
       let grid_rightmost_values =
         [| top_row_buffer.(0); mid_row_buffer.(0); inputs.data_in |]
@@ -186,48 +182,49 @@ module Forklift = struct
         proc
           [ reading_col_idx <-- reading_col_idx.value +:. 1
           ; when_
-              (reading_col_idx.value ==: inputs.cols -:. 1)
+              (reading_col_idx.value ==: num_cols.value -:. 1)
               [ reading_col_idx <--. 0
               ; reading_row_idx <-- reading_row_idx.value +:. 1
               ; when_
-                  (reading_row_idx.value ==: inputs.rows -:. 1)
+                  (reading_row_idx.value ==: num_rows.value -:. 1)
                   [ (* finish reading *) ]
               ]
           ; shift_grid
           ])
     in
-    let process =
+    let calculate =
       Always.(
         proc
           [ (* TODO: remove DEBUG proc *)
             proc [ processing_result <-- result; dbg_neighbors_count <-- dbg_nc ]
           ; processing_col_idx <-- processing_col_idx.value +:. 1
           ; when_
-              (processing_col_idx.value ==: inputs.cols -:. 1)
+              (processing_col_idx.value ==: num_cols.value -:. 1)
               [ processing_col_idx <--. 0
               ; processing_row_idx <-- processing_row_idx.value +:. 1
               ; when_
-                  (processing_row_idx.value ==: inputs.rows -:. 1)
-                  [ processing_row_idx <--. 0 ]
+                  (processing_row_idx.value ==: num_rows.value -:. 1)
+                  [ (* TODO: finish calculation *) ]
               ]
           ])
     in
     Always.(
       compile
         [ sm.switch
-            [ Idle, [ sm.set_next Thinking ]
-            ; ( Thinking
+            [ Idle, [ setup; sm.set_next ReadIn ]
+            ; ( ReadIn
               , [ if_
                     ((* TODO: refactor this magic *)
                      offset.value
-                     <: uresize inputs.cols offset_bit_width +:. 1)
+                     <: uresize num_cols.value offset_bit_width +:. 1)
                     [ offset <-- offset.value +:. 1 ]
-                    [ process ]
+                    [ calculate ]
                 ; read_in
                 ] )
+            ; ReadCalc, []
+            ; CalcRemaining, []
             ]
         ]);
-    let _ = Scope.naming scope sm.current "state" in
     { O.ready = vdd
     ; data_out = processing_result.value
     ; valid_out = vdd
