@@ -2,6 +2,7 @@ open! Base
 open Hardcaml
 open Hardcaml_waveterm
 open Problem_4
+open! Hardcaml_verify
 include Util
 
 let%expect_test "Forklift Test" =
@@ -21,6 +22,8 @@ let%expect_test "Forklift Test" =
     i.rows := Bits.of_int rows ~width:Forklift.row_bit_width;
     i.cols := Bits.of_int cols ~width:Forklift.col_bit_width;
     i.clear := Bits.gnd;
+    i.data_valid := Bits.vdd;
+    (*FIXME: test invalid data too *)
     run_cycle sim;
     List.iter stream ~f:(fun din ->
       i.data_in := Bits.of_int din ~width:1;
@@ -29,7 +32,7 @@ let%expect_test "Forklift Test" =
     run_cycle ~n:10 sim;
     Waveform.print
       ~display_width:200
-      ~display_height:80
+      ~display_height:30
       ~display_rules:[ Hardcaml_waveterm.Display_rule.default ]
       waves
   in
