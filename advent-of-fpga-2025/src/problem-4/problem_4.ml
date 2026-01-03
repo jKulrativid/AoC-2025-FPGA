@@ -71,6 +71,7 @@ module Forklift = struct
           Always.Variable.reg spec ~width:1))
   ;;
 
+  (* TODO: extract grid logic into a new circuit module *)
   let remove_accessible
         (grid : Always.Variable.t array array)
         ~is_top_row
@@ -103,10 +104,10 @@ module Forklift = struct
     mux2 (is_paper &: ~:is_accessible) paper empty_space, neighbors_count
   ;;
 
-  (*let create I.{ data_in; rows; cols; clock; clear } =*)
-  let create _ (inputs : _ I.t) =
+  let create scope (inputs : _ I.t) : _ O.t =
     let open Signal in
     let spec = Reg_spec.create ~clock:inputs.clock ~clear:inputs.clear () in
+    let sm = Always.State_machine.create (module State) spec in
     let reading_row_idx = Always.Variable.reg spec ~width:row_bit_width in
     let reading_col_idx = Always.Variable.reg spec ~width:col_bit_width in
     let processing_row_idx = Always.Variable.reg spec ~width:row_bit_width in
@@ -159,6 +160,13 @@ module Forklift = struct
         ()
     in
     let grid = get_empty_grid spec in
+    let is_top_row = processing_row_idx.value ==:. 0 in
+    let is_bottom_row = processing_row_idx.value ==: inputs.rows -:. 1 in
+    let is_left_col = processing_col_idx.value ==:. 0 in
+    let is_right_col = processing_col_idx.value ==: inputs.cols -:. 1 in
+    let result, dbg_nc =
+      remove_accessible grid ~is_top_row ~is_bottom_row ~is_left_col ~is_right_col
+    in
     let shift_grid =
       let grid_rightmost_values =
         [| top_row_buffer.(0); mid_row_buffer.(0); inputs.data_in |]
@@ -173,48 +181,53 @@ module Forklift = struct
       |> Array.to_list
       |> Always.proc
     in
-    let is_top_row = processing_row_idx.value ==:. 0 in
-    let is_bottom_row = processing_row_idx.value ==: inputs.rows -:. 1 in
-    let is_left_col = processing_col_idx.value ==:. 0 in
-    let is_right_col = processing_col_idx.value ==: inputs.cols -:. 1 in
-    let pr, nc =
-      remove_accessible grid ~is_top_row ~is_bottom_row ~is_left_col ~is_right_col
+    let read_in =
+      Always.(
+        proc
+          [ reading_col_idx <-- reading_col_idx.value +:. 1
+          ; when_
+              (reading_col_idx.value ==: inputs.cols -:. 1)
+              [ reading_col_idx <--. 0
+              ; reading_row_idx <-- reading_row_idx.value +:. 1
+              ; when_
+                  (reading_row_idx.value ==: inputs.rows -:. 1)
+                  [ (* finish reading *) ]
+              ]
+          ; shift_grid
+          ])
+    in
+    let process =
+      Always.(
+        proc
+          [ (* TODO: remove DEBUG proc *)
+            proc [ processing_result <-- result; dbg_neighbors_count <-- dbg_nc ]
+          ; processing_col_idx <-- processing_col_idx.value +:. 1
+          ; when_
+              (processing_col_idx.value ==: inputs.cols -:. 1)
+              [ processing_col_idx <--. 0
+              ; processing_row_idx <-- processing_row_idx.value +:. 1
+              ; when_
+                  (processing_row_idx.value ==: inputs.rows -:. 1)
+                  [ processing_row_idx <--. 0 ]
+              ]
+          ])
     in
     Always.(
       compile
-        [ proc
-            [ if_
-                ((* TODO: refactor this magic *)
-                 offset.value
-                 <: uresize inputs.cols offset_bit_width +:. 1)
-                [ offset <-- offset.value +:. 1 ]
-                [ proc [ processing_result <-- pr; dbg_neighbors_count <-- nc ]
-                ; proc
-                    [ processing_col_idx <-- processing_col_idx.value +:. 1
-                    ; when_
-                        (processing_col_idx.value ==: inputs.cols -:. 1)
-                        [ processing_col_idx <--. 0
-                        ; processing_row_idx <-- processing_row_idx.value +:. 1
-                        ; when_
-                            (processing_row_idx.value ==: inputs.rows -:. 1)
-                            [ processing_row_idx <--. 0 ]
-                        ]
-                    ]
-                ]
+        [ sm.switch
+            [ Idle, [ sm.set_next Thinking ]
+            ; ( Thinking
+              , [ if_
+                    ((* TODO: refactor this magic *)
+                     offset.value
+                     <: uresize inputs.cols offset_bit_width +:. 1)
+                    [ offset <-- offset.value +:. 1 ]
+                    [ process ]
+                ; read_in
+                ] )
             ]
-        ; proc
-            [ reading_col_idx <-- reading_col_idx.value +:. 1
-            ; when_
-                (reading_col_idx.value ==: inputs.cols -:. 1)
-                [ reading_col_idx <--. 0
-                ; reading_row_idx <-- reading_row_idx.value +:. 1
-                ; when_
-                    (reading_row_idx.value ==: inputs.rows -:. 1)
-                    [ (* finish reading *) ]
-                ]
-            ]
-        ; shift_grid
         ]);
+    let _ = Scope.naming scope sm.current "state" in
     { O.ready = vdd
     ; data_out = processing_result.value
     ; valid_out = vdd
