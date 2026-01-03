@@ -1,9 +1,8 @@
-open! Base
+open! Core
 open Hardcaml
 open Hardcaml_waveterm
 open Problem_4
 open! Hardcaml_verify
-open Input_parser
 include Util
 
 let%expect_test "Forklift Test" =
@@ -29,7 +28,7 @@ let%expect_test "Forklift Test" =
     List.iter stream ~f:(fun din ->
       i.data_in := Bits.of_int din ~width:1;
       run_cycle sim);
-    i.data_in := Bits.of_int zero ~width:1;
+    i.data_in := Bits.gnd;
     run_cycle ~n:10 sim;
     Waveform.print
       ~display_width:200
@@ -41,8 +40,57 @@ let%expect_test "Forklift Test" =
   [%expect {| |}]
 ;;
 
-let%expect_test "Forklift AoC Test" =
+(* TODO: share this with the above test *)
+let run_test_case (test_input : int array array) (expected : int) =
   let module Sim = Cyclesim.With_interface (Forklift.I) (Forklift.O) in
+  let waves, sim = Waveform.create @@ Sim.create @@ Forklift.create (Scope.create ()) in
+  let i = Cyclesim.inputs sim in
+  let o = Cyclesim.outputs sim in
+  let rec run_cycle_until_last sim =
+    let is_last = Bits.to_int !(o.last) in
+    if is_last = 1 then
+      ()
+    else (
+      run_cycle sim;
+      run_cycle_until_last sim)
+  in
+  let num_rows = Array.length test_input in
+  let num_cols = Array.length test_input.(0) in
+  i.rows := Bits.of_int num_rows ~width:Forklift.row_bit_width;
+  i.cols := Bits.of_int num_cols ~width:Forklift.col_bit_width;
+  i.data_valid := Bits.vdd;
+  i.clear := Bits.gnd;
+  run_cycle sim;
+  Array.iteri test_input ~f:(fun ri r ->
+    Array.iteri r ~f:(fun ci c ->
+      let ready = Bits.to_int !(o.ready) in
+      if ready <> 1 then
+        Printf.sprintf
+          "the circuit is not ready to take an input at (row, col) of (%d, %d)"
+          ri
+          ci
+        |> failwith;
+      i.data_in := Bits.of_int c ~width:1;
+      i.data_valid := Bits.vdd;
+      run_cycle sim));
+  run_cycle_until_last sim;
+  let actual = Bits.to_int !(o.removed_paper_count) in
+  if expected <> actual then (
+    Hardcaml_waveterm.Waveform.print
+      ~display_width:200
+      ~display_height:30
+      ~start_cycle:95
+      ~display_rules:[ Hardcaml_waveterm.Display_rule.default ]
+      waves;
+    Stdio.printf "FAIL: Expected %d, but got %d\n" expected actual)
+;;
+
+let%expect_test "Forklift AoC Simple Input" =
+  let module Sim = Cyclesim.With_interface (Forklift.I) (Forklift.O) in
+  let read_input file_name =
+    In_channel.read_all file_name |> Input_parser.Problem_4.parse
+  in
   let _sim = Sim.create @@ Forklift.create (Scope.create ()) in
-  ()
+  run_test_case (read_input "inputs/day4_test.txt") 13;
+  run_test_case (read_input "inputs/day4_real.txt") 1527
 ;;
