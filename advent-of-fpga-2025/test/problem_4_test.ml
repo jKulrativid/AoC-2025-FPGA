@@ -3,6 +3,7 @@ open Hardcaml
 open Hardcaml_waveterm
 open Problem_4
 open! Hardcaml_verify
+open Input_parser
 include Util
 
 let%expect_test "Forklift Test" =
@@ -38,4 +39,10 @@ let%expect_test "Forklift Test" =
   in
   List.iter testcases ~f:run;
   [%expect {| |}]
+;;
+
+let%expect_test "Forklift AoC Test" =
+  let module Sim = Cyclesim.With_interface (Forklift.I) (Forklift.O) in
+  let _sim = Sim.create @@ Forklift.create (Scope.create ()) in
+  ()
 ;;

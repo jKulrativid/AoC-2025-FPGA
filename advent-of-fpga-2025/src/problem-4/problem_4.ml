@@ -10,6 +10,7 @@ let () = Caller_id.set_mode Full_trace
 module Forklift = struct
   let row_bit_width = 8
   let col_bit_width = 8
+  let removed_paper_count_bit_width = row_bit_width + col_bit_width
   let max_row_size = Int.pow 2 row_bit_width - 1
 
   module State = struct
@@ -42,7 +43,7 @@ module Forklift = struct
         TODO: implement AXI-like tvalid logic
       *)
       ; last : 'a
-      ; removed_paper_count : 'a
+      ; removed_paper_count : 'a [@bits removed_paper_count_bit_width]
       }
     [@@deriving hardcaml, sexp_of]
   end
@@ -65,7 +66,6 @@ module Forklift = struct
         ~is_left_col
         ~is_right_col
     =
-    (* TODO: maybe this can be readable *)
     let open Signal in
     let row_mask = [| ~:is_top_row; vdd; ~:is_bottom_row |] in
     let col_mask = [| ~:is_left_col; vdd; ~:is_right_col |] in
@@ -106,8 +106,26 @@ module Forklift = struct
         (zero col_bit_width)
         (reading_col_idx.value +:. 1)
     in
+    (* outputs *)
+    let data_out = Always.Variable.reg spec ~width:1 in
+    let valid_out = Always.Variable.reg spec ~width:1 in
+    let last = Always.Variable.reg spec ~width:1 in
+    let removed_paper_count =
+      Always.Variable.reg spec ~width:removed_paper_count_bit_width
+    in
+    (* events derived from FSM states *)
+    let ready = sm.is Idle |: sm.is ReadIn |: sm.is ReadCalc in
+    let starting = ready &: inputs.data_valid in
+    let running = inputs.data_valid &: ~:(sm.is Idle) in
+    let finish_readonly_phase = running &: (offset.value <: num_cols.value) in
+    let calculating = running &: (sm.is ReadCalc |: sm.is CalcRemaining) in
+    let calculating_last_item =
+      calculating
+      &: (processing_row_idx.value
+          ==: num_rows.value -:. 1
+          &: (processing_col_idx.value ==: num_cols.value -:. 1))
+    in
     (* TODO: wire this to valid logic *)
-    (* init mid row buffer *)
     let mid_row_buffer =
       Ram.create
         ~name:"mid_row_buffer"
@@ -115,7 +133,7 @@ module Forklift = struct
         ~collision_mode:Read_before_write
         ~write_ports:
           [| { write_clock = inputs.clock
-             ; write_enable = vdd (* TODO: don't write if input is invalid *)
+             ; write_enable = running
              ; write_address = reading_col_idx.value
              ; write_data = inputs.data_in
              }
@@ -124,7 +142,6 @@ module Forklift = struct
           [| { read_clock = inputs.clock; read_enable = vdd; read_address = read_addr } |]
         ()
     in
-    (* init top row buffer *)
     let top_row_buffer =
       Ram.create
         ~name:"top_row_buffer"
@@ -132,7 +149,7 @@ module Forklift = struct
         ~collision_mode:Read_before_write
         ~write_ports:
           [| { write_clock = inputs.clock
-             ; write_enable = vdd (* TODO: don't write if input is invalid *)
+             ; write_enable = running
              ; write_address = reading_col_idx.value
              ; write_data = mid_row_buffer.(0)
              }
@@ -146,20 +163,19 @@ module Forklift = struct
     let is_bottom_row = processing_row_idx.value ==: num_rows.value -:. 1 in
     let is_left_col = processing_col_idx.value ==:. 0 in
     let is_right_col = processing_col_idx.value ==: num_cols.value -:. 1 in
-    (* outputs *)
-    let data_out = Always.Variable.reg spec ~width:1 in
-    let valid_out = Always.Variable.reg spec ~width:1 in
-    let last = Always.Variable.reg spec ~width:1 in
-    (* events derived from FSM states *)
-    let ready = sm.is Idle in
-    let starting = ready &: inputs.data_valid in
-    let running = inputs.data_valid &: ~:(sm.is Idle) in
-    let calculating = running &: (sm.is ReadCalc |: sm.is CalcRemaining) in
-    let calculating_last_item =
-      calculating
-      &: (processing_row_idx.value
-          ==: num_rows.value -:. 1
-          &: (processing_col_idx.value ==: num_cols.value -:. 1))
+    let calculation_result =
+      remove_accessible grid ~is_top_row ~is_bottom_row ~is_left_col ~is_right_col
+    in
+    let reset =
+      Always.(
+        proc
+          [ offset <--. 0
+          ; reading_row_idx <--. 0
+          ; reading_col_idx <--. 0
+          ; processing_row_idx <--. 0
+          ; processing_col_idx <--. 0
+          ; removed_paper_count <--. 0
+          ])
     in
     (* Always DSLs *)
     let datapath_logic =
@@ -191,15 +207,11 @@ module Forklift = struct
       let calculate =
         Always.(
           proc
-            [ (* TODO: remove DEBUG proc *)
-              data_out
-              <-- remove_accessible
-                    grid
-                    ~is_top_row
-                    ~is_bottom_row
-                    ~is_left_col
-                    ~is_right_col
+            [ data_out <-- calculation_result
             ; valid_out <--. 1
+            ; when_
+                (calculation_result ==:. 0 &: (grid.(1).(1).value ==:. 1))
+                [ removed_paper_count <-- removed_paper_count.value +:. 1 ]
             ; processing_col_idx <-- processing_col_idx.value +:. 1
             ; when_
                 (processing_col_idx.value ==: num_cols.value -:. 1)
@@ -221,12 +233,10 @@ module Forklift = struct
       Always.(
         proc
           [ sm.switch
-              [ Idle, [ when_ inputs.data_valid [ sm.set_next ReadIn ] ]
+              [ Idle, [ reset; when_ inputs.data_valid [ sm.set_next ReadIn ] ]
               ; ( ReadIn
                 , [ if_
-                      ((* TODO: refactor this magic *)
-                       offset.value
-                       <: num_cols.value)
+                      finish_readonly_phase
                       [ offset <-- offset.value +:. 1 ]
                       [ sm.set_next ReadCalc ]
                   ] )
@@ -244,7 +254,7 @@ module Forklift = struct
     ; data_out = data_out.value
     ; valid_out = valid_out.value
     ; last = last.value
-    ; removed_paper_count = vdd
+    ; removed_paper_count = removed_paper_count.value
     }
   ;;
 end

@@ -1,6 +1,6 @@
 (library
  (name test)
  (inline_tests)
- (libraries core hardcaml hardcaml_waveterm hardcaml_verify problem_4 exercise)
+ (libraries base input_parser hardcaml hardcaml_waveterm hardcaml_verify problem_4 exercise)
  (preprocess
   (pps ppx_jane ppx_hardcaml)))
