@@ -11,6 +11,10 @@ I aim to solve 3 problems (note for myself)
 Each solution should exploit FPGA superpower of pipelining and parallelism,
 and Hardcaml superpower of abstraction, type-safety, and human readability.
 
+## Ultimate Goal
+
+leverage functional programming to simplify code as much as possible (no manually-wired systolic array)
+
 ## NOTE
 
 - On 1st problem: I accidentially see the near-optimal solution since the problem itself is a subclass of convey's game of life.
@@ -29,9 +33,12 @@ and Hardcaml superpower of abstraction, type-safety, and human readability.
 - explain the test strategy and test structure
 - promote state-machine readable always block pattern (strength of hardcaml btw.)
 - flattern the problems into one folder (no submodule for each problem anymore)
-- 1st problem (problem 4) can be further optimized with bit manipulation and popcount.
+- 1st problem (day 4) can be further optimized with bit manipulation and popcount.
   explain: store row with int register and then grid will be a list of integers.
-- 1st problem (problem 4): explain how the pipeline stall, smoothening input calculation
+- 1st problem (day 4): explain how the pipeline stall, smoothening input calculation.
+- 1st problem (day 4): explain how we exploit memory alignment to maximize resource utils (FF, BRAM, URAM if exists).
+- 1st problem (day 4): try self-testing and re-routing (horribly complicated only if we have time).
+- 1st problem (day 4): create a transpose logic so that for 3x100 we require forklift with width = 3 instead of 100 !!!
 
 formatting dune file
 
