@@ -13,7 +13,8 @@ and Hardcaml superpower of abstraction, type-safety, and human readability.
 
 ## Ultimate Goal
 
-leverage functional programming to simplify code as much as possible (no manually-wired systolic array)
+leverage functional programming to simplify code while offering configurability
+that system verilog can be matched (e.g. List.map creating systolic array)
 
 ## NOTE
 

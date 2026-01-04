@@ -20,8 +20,4 @@ let next_cycle ?(n = 0) sim =
   done
 ;;
 
-let print_reg_by_name sim name =
-  match Cyclesim.lookup_reg_by_name sim name with
-  | None -> Stdio.print_endline "not found current row"
-  | Some r -> Cyclesim.Reg.to_int r |> Int.to_string |> Stdio.print_endline
-;;
+let read_input file_name = In_channel.read_all file_name |> Input_parser.Problem_4.parse

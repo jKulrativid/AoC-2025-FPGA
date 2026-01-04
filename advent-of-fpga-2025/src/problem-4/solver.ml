@@ -27,8 +27,9 @@ end
 
 module O = struct
   type 'a t =
-    { ready : 'a
-    ; result : 'a
+    { result : 'a
+    ; finished : 'a
+    ; total_removed_paper_count : 'a [@bits Config.removed_paper_count_bit_width]
     }
   [@@deriving hardcaml, sexp_of]
 end
@@ -43,7 +44,7 @@ let create _scope (inputs : _ I.t) : _ O.t =
   let feeding_col_idx = Always.Variable.reg spec ~width:Config.col_bit_width in
   let enq_row_idx = Always.Variable.reg spec ~width:Config.row_bit_width in
   let enq_col_idx = Always.Variable.reg spec ~width:Config.col_bit_width in
-  let total_removed_papers =
+  let total_removed_paper_count =
     Always.Variable.reg spec ~width:Config.removed_paper_count_bit_width
   in
   let setup =
@@ -55,7 +56,7 @@ let create _scope (inputs : _ I.t) : _ O.t =
         ; feeding_col_idx <--. 0
         ; enq_row_idx <--. 0
         ; enq_col_idx <--. 0
-        ; total_removed_papers <--. 0
+        ; total_removed_paper_count <--. 0
         ])
   in
   Always.(
@@ -104,5 +105,8 @@ let create _scope (inputs : _ I.t) : _ O.t =
       ()
   in
   assign fifo_to_forklift fifo.q;
-  { O.ready = vdd; result = vdd }
+  { result = vdd
+  ; finished = vdd (* TODO *)
+  ; total_removed_paper_count = total_removed_paper_count.value
+  }
 ;;
