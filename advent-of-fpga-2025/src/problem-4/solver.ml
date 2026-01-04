@@ -1,23 +1,28 @@
 open! Base
 open Hardcaml
 
+let fifo_size = Config.row_bit_width * Config.col_bit_width
+
 module State = struct
   type t =
     | Idle
-    | Setup
     | ReadInput
-    | Loop
+    | LoopReadInputFromFIFO
+    | LoopProc (* TODO: better name for loop state, or it should be subenum *)
+    | Finished
+  [@@deriving compare, enumerate, sexp_of]
 end
 
 module I = struct
   type 'a t =
-    { num_rows : 'a
-    ; num_cols : 'a
+    { num_rows : 'a [@bits Config.row_bit_width]
+    ; num_cols : 'a [@bits Config.col_bit_width]
     ; data_in : 'a
     ; data_valid : 'a
     ; clock : 'a
+    ; clear : 'a
     }
-  [@@deriving hardcaml]
+  [@@deriving hardcaml, sexp_of]
 end
 
 module O = struct
@@ -25,13 +30,79 @@ module O = struct
     { ready : 'a
     ; result : 'a
     }
+  [@@deriving hardcaml, sexp_of]
 end
 
-(* 
-    Idle ---( read rows and cols )--> Calculating(reading stream)
-    ---()-->
-*)
-
-let _ = Signal.vdd
-
-(* let create _scope (_inputs : _ I.t) : _ O.t = { O.result = Signal.vdd } *)
+let create _scope (inputs : _ I.t) : _ O.t =
+  let open Signal in
+  let spec = Reg_spec.create ~clock:inputs.clock ~clear:inputs.clear () in
+  let sm = Always.State_machine.create (module State) spec in
+  let num_rows = Always.Variable.reg spec ~width:Config.row_bit_width in
+  let num_cols = Always.Variable.reg spec ~width:Config.col_bit_width in
+  let feeding_row_idx = Always.Variable.reg spec ~width:Config.row_bit_width in
+  let feeding_col_idx = Always.Variable.reg spec ~width:Config.col_bit_width in
+  let enq_row_idx = Always.Variable.reg spec ~width:Config.row_bit_width in
+  let enq_col_idx = Always.Variable.reg spec ~width:Config.col_bit_width in
+  let total_removed_papers =
+    Always.Variable.reg spec ~width:Config.removed_paper_count_bit_width
+  in
+  let setup =
+    Always.(
+      proc
+        [ num_rows <-- inputs.num_rows
+        ; num_cols <-- inputs.num_cols
+        ; feeding_row_idx <--. 0
+        ; feeding_col_idx <--. 0
+        ; enq_row_idx <--. 0
+        ; enq_col_idx <--. 0
+        ; total_removed_papers <--. 0
+        ])
+  in
+  Always.(
+    compile
+      [ sm.switch
+          [ Idle, [ when_ inputs.data_valid [ setup; sm.set_next ReadInput ] ]
+          ; ( ReadInput
+            , [ when_
+                  (feeding_row_idx.value
+                   ==: num_rows.value -:. 1
+                   &: (feeding_col_idx.value ==: num_cols.value -:. 1))
+                  [ sm.set_next LoopProc ]
+              ] )
+          ; LoopReadInputFromFIFO, []
+          ; LoopProc, []
+          ; Finished, []
+          ]
+      ]);
+  let fifo_to_forklift = wire Config.data_bit_width in
+  let forklift =
+    Forklift.create
+      _scope
+      { data_in = mux2 (sm.is ReadInput) inputs.data_in fifo_to_forklift
+      ; data_valid =
+          mux2
+            (sm.is ReadInput)
+            inputs.data_valid
+            vdd (* TODO: handle this vdd if turns to stream processor *)
+      ; rows = num_rows.value
+      ; cols = num_cols.value
+      ; clock = inputs.clock
+      ; clear = inputs.clear
+      }
+  in
+  let fifo_wdata = mux2 (sm.is ReadInput) inputs.data_in forklift.data_out in
+  let fifo_wr = forklift.valid_out in
+  let fifo_rd = sm.is LoopReadInputFromFIFO in
+  let fifo =
+    Fifo.create
+      ~capacity:fifo_size
+      ~clock:inputs.clock
+      ~clear:inputs.clear
+      ~wr:fifo_wr
+      ~d:fifo_wdata
+      ~rd:fifo_rd
+      ()
+  in
+  assign fifo_to_forklift fifo.q;
+  { O.ready = vdd; result = vdd }
+;;

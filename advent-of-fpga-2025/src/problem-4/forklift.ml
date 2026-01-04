@@ -1,6 +1,5 @@
 open! Base
 open Hardcaml
-include Config
 
 module State = struct
   type t =
@@ -15,8 +14,8 @@ module I = struct
   type 'a t =
     { data_in : 'a
     ; data_valid : 'a
-    ; rows : 'a [@bits row_bit_width]
-    ; cols : 'a [@bits col_bit_width]
+    ; rows : 'a [@bits Config.row_bit_width]
+    ; cols : 'a [@bits Config.col_bit_width]
     ; clock : 'a
     ; clear : 'a
     }
@@ -32,7 +31,7 @@ module O = struct
         TODO: implement AXI-like tvalid logic
       *)
     ; last : 'a
-    ; removed_paper_count : 'a [@bits removed_paper_count_bit_width]
+    ; removed_paper_count : 'a [@bits Config.removed_paper_count_bit_width]
     }
   [@@deriving hardcaml, sexp_of]
 end
@@ -82,17 +81,17 @@ let create _scope (inputs : _ I.t) : _ O.t =
   let open Signal in
   let spec = Reg_spec.create ~clock:inputs.clock ~clear:inputs.clear () in
   let sm = Always.State_machine.create (module State) spec in
-  let num_rows = Always.Variable.reg spec ~width:row_bit_width in
-  let num_cols = Always.Variable.reg spec ~width:col_bit_width in
-  let reading_row_idx = Always.Variable.reg spec ~width:row_bit_width in
-  let reading_col_idx = Always.Variable.reg spec ~width:col_bit_width in
-  let processing_row_idx = Always.Variable.reg spec ~width:row_bit_width in
-  let processing_col_idx = Always.Variable.reg spec ~width:col_bit_width in
-  let offset = Always.Variable.reg spec ~width:col_bit_width in
+  let num_rows = Always.Variable.reg spec ~width:Config.row_bit_width in
+  let num_cols = Always.Variable.reg spec ~width:Config.col_bit_width in
+  let reading_row_idx = Always.Variable.reg spec ~width:Config.row_bit_width in
+  let reading_col_idx = Always.Variable.reg spec ~width:Config.col_bit_width in
+  let processing_row_idx = Always.Variable.reg spec ~width:Config.row_bit_width in
+  let processing_col_idx = Always.Variable.reg spec ~width:Config.col_bit_width in
+  let offset = Always.Variable.reg spec ~width:Config.col_bit_width in
   let read_addr =
     mux2
       (reading_col_idx.value ==: num_cols.value -:. 1)
-      (zero col_bit_width)
+      (zero Config.col_bit_width)
       (reading_col_idx.value +:. 1)
   in
   (* outputs *)
@@ -100,7 +99,7 @@ let create _scope (inputs : _ I.t) : _ O.t =
   let valid_out = Always.Variable.reg spec ~width:1 in
   let last = Always.Variable.reg spec ~width:1 in
   let removed_paper_count =
-    Always.Variable.reg spec ~width:removed_paper_count_bit_width
+    Always.Variable.reg spec ~width:Config.removed_paper_count_bit_width
   in
   (* events derived from FSM states *)
   let ready = sm.is Idle |: sm.is ReadIn |: sm.is ReadCalc in
@@ -118,7 +117,7 @@ let create _scope (inputs : _ I.t) : _ O.t =
   let mid_row_buffer =
     Ram.create
       ~name:"mid_row_buffer"
-      ~size:max_row_size
+      ~size:Config.max_row_size
       ~collision_mode:Read_before_write
       ~write_ports:
         [| { write_clock = inputs.clock
@@ -134,7 +133,7 @@ let create _scope (inputs : _ I.t) : _ O.t =
   let top_row_buffer =
     Ram.create
       ~name:"top_row_buffer"
-      ~size:max_row_size
+      ~size:Config.max_row_size
       ~collision_mode:Read_before_write
       ~write_ports:
         [| { write_clock = inputs.clock

@@ -3,6 +3,7 @@ open Hardcaml
 open Hardcaml_waveterm
 open Problem_4
 open! Hardcaml_verify
+module Problem_4_Config = Problem_4.Config
 include Util
 
 let read_input file_name = In_channel.read_all file_name |> Input_parser.Problem_4.parse
@@ -21,11 +22,11 @@ let%expect_test "Forklift Debug Test" =
     let waves, sim = Waveform.create @@ Sim.create @@ Forklift.create (Scope.create ()) in
     let i = Cyclesim.inputs sim in
     (* setup config *)
-    i.rows := Bits.of_int rows ~width:Forklift.row_bit_width;
-    i.cols := Bits.of_int cols ~width:Forklift.col_bit_width;
+    i.rows := Bits.of_int rows ~width:Problem_4_Config.row_bit_width;
+    i.cols := Bits.of_int cols ~width:Problem_4_Config.col_bit_width;
     i.clear := Bits.gnd;
     i.data_valid := Bits.vdd;
-    (*FIXME: test invalid data too *)
+    (*TODO: test invalid data too *)
     next_cycle sim;
     List.iter stream ~f:(fun din ->
       i.data_in := Bits.of_int din ~width:1;
@@ -59,8 +60,8 @@ let run_test_case (name : string) (test_input : int array array) =
       in
       let num_rows = Array.length test_input in
       let num_cols = Array.length test_input.(0) in
-      i.rows := Bits.of_int num_rows ~width:Forklift.row_bit_width;
-      i.cols := Bits.of_int num_cols ~width:Forklift.col_bit_width;
+      i.rows := Bits.of_int num_rows ~width:Problem_4_Config.row_bit_width;
+      i.cols := Bits.of_int num_cols ~width:Problem_4_Config.col_bit_width;
       i.data_valid := Bits.vdd;
       i.clear := Bits.gnd;
       next_cycle sim;
@@ -84,6 +85,8 @@ let run_test_case (name : string) (test_input : int array array) =
       next_cycle ~n:110 sim (* include last cycle to the .vcd*))
     ~finally:(fun () -> Out_channel.close oc)
 ;;
+
+(* FIXME: implement formal verification *)
 
 let%expect_test "Forklift AoC Simple Input" =
   run_test_case "test_input" (read_input "inputs/day4_test.txt");

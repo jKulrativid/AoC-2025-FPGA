@@ -27,6 +27,9 @@ leverage functional programming to simplify code as much as possible (no manuall
   via implementing redundancy in the stream so that each step contains enough information.
 - Maybe there is a place to use cuckoo hash e.g. problem that strictly requires linked list or your life will be much suffered.
 - Coding style inspiration : https://github.com/hardcamls/reedsolomon.
+- 2nd problem (day 12): systolic array seems to be great idea but vectorizing them is incredably complex.
+  However, since these problem is NP-hard then we don't have to encode or batch them like 1st problem.
+- 2nd problem: since it's NP-hard, why not try approximation algorithm in the FPGA
 
 ## TODO ("make it right" step):
 
