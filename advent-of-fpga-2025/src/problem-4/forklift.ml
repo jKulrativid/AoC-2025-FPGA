@@ -210,7 +210,7 @@ let create _scope (inputs : _ I.t) : _ O.t =
       proc
         [ valid_out <--. 0
         ; when_ starting [ num_rows <-- inputs.rows; num_cols <-- inputs.cols ]
-        ; when_ running [ read_in; shift_grid ]
+        ; when_ (starting |: running) [ read_in; shift_grid ]
         ; when_ calculating [ calculate ]
         ; if_ (calculating &: calculating_last_item) [ last <--. 1 ] [ last <--. 0 ]
         ])
@@ -228,7 +228,9 @@ let create _scope (inputs : _ I.t) : _ O.t =
                 ] )
             ; ( ReadCalc
               , [ when_
-                    (reading_row_idx.value ==: num_rows.value)
+                    (reading_row_idx.value
+                     ==: num_rows.value -:. 1
+                     &: (reading_col_idx.value ==: num_cols.value -:. 1))
                     [ sm.set_next CalcRemaining ]
                 ] )
             ; CalcRemaining, [ when_ calculating_last_item [ sm.set_next Idle ] ]

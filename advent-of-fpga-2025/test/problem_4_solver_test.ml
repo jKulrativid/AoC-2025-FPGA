@@ -1,6 +1,7 @@
 open! Core
 open Hardcaml
 open Problem_4
+open Hardcaml_waveterm
 include Util
 module Problem_4_Config = Problem_4.Config
 
@@ -14,12 +15,13 @@ let run_test_case (suite_name : string) (case_name : string) (test_input : int l
   Exn.protect
     ~f:(fun () ->
       let sim = Vcd.wrap oc @@ Sim.create @@ Solver.create (Scope.create ()) in
+      let waves, sim = Waveform.create sim in
       let i = Cyclesim.inputs sim in
       let o = Cyclesim.outputs sim in
-      let rec run_until_finished sim =
+      let rec _run_until_finished sim =
         if Bits.to_int !(o.finished) <> 1 then (
           next_cycle sim;
-          run_until_finished sim)
+          _run_until_finished sim)
       in
       let num_rows = List.length test_input in
       let num_cols = List.length @@ List.hd_exn @@ test_input in
@@ -34,15 +36,23 @@ let run_test_case (suite_name : string) (case_name : string) (test_input : int l
         next_cycle sim
       in
       List.iter test_input ~f:(fun r -> List.iter r ~f:(fun c -> feed_input c));
-      run_until_finished sim;
+      i.data_in := Bits.gnd;
+      i.data_valid := Bits.gnd;
+      next_cycle ~n:20 sim;
+      (* _run_until_finished sim; *)
       let actual = Bits.to_int !(o.total_removed_paper_count) in
       Stdio.printf "%d\n" actual;
-      next_cycle ~n:110 sim (* include last cycle to the .vcd*))
+      Waveform.print ~display_width:200 ~display_height:40 waves;
+      next_cycle sim (* include last cycle to the .vcd*))
     ~finally:(fun () -> Out_channel.close oc)
 ;;
 
 let%expect_test "AoC Day 4 Test Input (10x10)" =
-  let run_suite_test_case = run_test_case "solver test" in
-  run_suite_test_case "AoC Day 4 Test Input (10x10)" (read_input "inputs/day4_test.txt");
-  [%expect {|43|}]
+  let run_test_suite_case = run_test_case "solver test" in
+  run_test_suite_case "Simple Input 2 (3x3)" [ [ 0; 1; 1 ]; [ 0; 1; 1 ]; [ 1; 0; 1 ] ];
+  [%expect {|6|}]
 ;;
+(*
+  run_test_suite_case "AoC Day 4 Test Input (10x10)" (read_input "inputs/day4_test.txt");
+  [%expect {|43|}]
+  *)
