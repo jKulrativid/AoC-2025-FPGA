@@ -32,6 +32,9 @@ module O = struct
       *)
     ; last : 'a
     ; removed_paper_count : 'a [@bits Config.removed_paper_count_bit_width]
+    ; dbg_rri : 'a [@bits Config.row_bit_width]
+    ; dbg_rci : 'a [@bits Config.col_bit_width]
+    ; dbg_grid_center : 'a
     }
   [@@deriving hardcaml, sexp_of]
 end
@@ -104,8 +107,10 @@ let create _scope (inputs : _ I.t) : _ O.t =
   (* events derived from FSM states *)
   let ready = sm.is Idle |: sm.is ReadIn |: sm.is ReadCalc in
   let starting = ready &: inputs.data_valid in
-  let running = inputs.data_valid &: ~:(sm.is Idle) in
-  let finish_readonly_phase = running &: (offset.value <: num_cols.value) in
+  let running =
+    inputs.data_valid &: (sm.is ReadIn |: sm.is ReadCalc) |: sm.is CalcRemaining
+  in
+  let finish_readonly_phase = running &: (offset.value ==: num_cols.value) in
   let calculating = running &: sm.is ReadCalc |: sm.is CalcRemaining in
   let calculating_last_item =
     calculating
@@ -223,8 +228,8 @@ let create _scope (inputs : _ I.t) : _ O.t =
             ; ( ReadIn
               , [ if_
                     finish_readonly_phase
-                    [ offset <-- offset.value +:. 1 ]
                     [ sm.set_next ReadCalc ]
+                    [ offset <-- offset.value +:. 1 ]
                 ] )
             ; ( ReadCalc
               , [ when_
@@ -243,5 +248,8 @@ let create _scope (inputs : _ I.t) : _ O.t =
   ; valid_out = valid_out.value
   ; last = last.value
   ; removed_paper_count = removed_paper_count.value
+  ; dbg_rri = reading_row_idx.value
+  ; dbg_rci = reading_col_idx.value
+  ; dbg_grid_center = grid.(1).(1).value
   }
 ;;

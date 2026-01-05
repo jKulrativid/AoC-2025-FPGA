@@ -6,7 +6,7 @@ let fifo_size = Config.max_row_size * Config.max_col_size
 module State = struct
   type t =
     | Idle
-    | Setup
+    | Setup (* FIXME:: this handles off-by-one state by forklift *)
     | ReadInput
     | Loop
     | Finished
@@ -30,11 +30,18 @@ module O = struct
     { finished : 'a
     ; total_removed_paper_count : 'a [@bits Config.removed_paper_count_bit_width]
     ; dbg_sm : 'a [@bits 3]
-    ; dbg_forklift_last : 'a
     ; dbg_fifo_rd : 'a
-    ; dbg_forklift_ready : 'a
     ; dbg_fifo_used : 'a [@bits Config.row_bit_width + Config.col_bit_width]
+    ; dbg_forklift_last : 'a
+    ; dbg_forklift_data_in : 'a
+    ; dbg_forklift_valid_in : 'a
+    ; dbg_forklift_ready : 'a
+    ; dbg_forklift_data_out : 'a
     ; dbg_forklift_valid_out : 'a
+    ; dbg_forklift_rri : 'a [@bits Config.row_bit_width]
+    ; dbg_forklift_rci : 'a [@bits Config.col_bit_width]
+    ; dbg_forklift_rmpaper : 'a [@bits Config.removed_paper_count_bit_width]
+    ; dbg_fl_grid_center : 'a
     }
   [@@deriving hardcaml, sexp_of]
 end
@@ -52,6 +59,11 @@ let create _scope (inputs : _ I.t) : _ O.t =
   in
   let forklift_is_last = wire 1 in
   let forklift_removed_paper_count = wire Config.removed_paper_count_bit_width in
+  let finish_reading =
+    feeding_row_idx.value
+    ==: num_rows.value -:. 1
+    &: (feeding_col_idx.value ==: num_cols.value -:. 1)
+  in
   let setup =
     Always.(
       proc
@@ -62,26 +74,24 @@ let create _scope (inputs : _ I.t) : _ O.t =
         ; total_removed_paper_count <--. 0
         ])
   in
-  let finish_reading =
-    feeding_row_idx.value
-    ==: num_rows.value -:. 1
-    &: (feeding_col_idx.value ==: num_cols.value -:. 1)
-  in
   Always.(
     compile
       [ sm.switch
-          [ Idle, [ when_ inputs.data_valid [ setup; sm.set_next ReadInput ] ]
+          [ Idle, [ when_ inputs.data_valid [ setup; sm.set_next Setup ] ]
           ; Setup, [ if_ finish_reading [ sm.set_next Loop ] [ sm.set_next ReadInput ] ]
           ; ( ReadInput
             , [ when_
                   inputs.data_valid
-                  [ feeding_col_idx <-- feeding_col_idx.value +:. 1
-                  ; when_
-                      (feeding_col_idx.value ==: num_cols.value -:. 1)
-                      [ feeding_col_idx <--. 0
-                      ; feeding_row_idx <-- feeding_row_idx.value +:. 1
+                  [ if_
+                      finish_reading
+                      [ sm.set_next Loop ]
+                      [ feeding_col_idx <-- feeding_col_idx.value +:. 1
+                      ; when_
+                          (feeding_col_idx.value ==: num_cols.value -:. 1)
+                          [ feeding_col_idx <--. 0
+                          ; feeding_row_idx <-- feeding_row_idx.value +:. 1
+                          ]
                       ]
-                  ; when_ finish_reading [ sm.set_next Loop ]
                   ]
               ] )
           ; ( Loop
@@ -89,7 +99,10 @@ let create _scope (inputs : _ I.t) : _ O.t =
                   forklift_is_last
                   [ total_removed_paper_count
                     <-- total_removed_paper_count.value +: forklift_removed_paper_count
-                  ; when_ (forklift_removed_paper_count ==:. 0) [ sm.set_next Finished ]
+                  ; if_
+                      (forklift_removed_paper_count ==:. 0)
+                      [ sm.set_next Finished ]
+                      [ sm.set_next Setup ]
                   ]
               ] )
           ; Finished, [ sm.set_next Idle ]
@@ -97,16 +110,20 @@ let create _scope (inputs : _ I.t) : _ O.t =
       ]);
   let fifo_to_forklift = wire Config.data_bit_width in
   let forklift_fifo_rd_prev_clock = wire 1 in
+  let forklift_data_in = mux2 (sm.is ReadInput) inputs.data_in fifo_to_forklift in
   let forklift_data_valid =
     mux2
-      (sm.is Loop)
-      forklift_fifo_rd_prev_clock
-      (mux2 (sm.is ReadInput) inputs.data_valid gnd)
+      (sm.is Setup)
+      vdd
+      (mux2
+         (sm.is Loop)
+         forklift_fifo_rd_prev_clock
+         (mux2 (sm.is ReadInput) inputs.data_valid gnd))
   in
   let forklift =
     Forklift.create
       _scope
-      { data_in = mux2 (sm.is ReadInput) inputs.data_in fifo_to_forklift
+      { data_in = forklift_data_in
       ; data_valid = forklift_data_valid
       ; rows = num_rows.value
       ; cols = num_cols.value
@@ -116,7 +133,14 @@ let create _scope (inputs : _ I.t) : _ O.t =
   in
   assign forklift_removed_paper_count forklift.removed_paper_count;
   assign forklift_is_last forklift.last;
-  let fifo_rd = mux2 (sm.is Loop) forklift.ready gnd in
+  let fifo_rd =
+    sm.is Setup
+    &: finish_reading
+    |: (sm.is Loop
+        &: forklift.ready
+        &: ~:(forklift.last)
+           (* FIXME: the forklift.last is for handling off-by-one error *))
+  in
   let fifo_rd_prev_clock = reg spec fifo_rd in
   assign forklift_fifo_rd_prev_clock fifo_rd_prev_clock;
   let fifo =
@@ -137,6 +161,13 @@ let create _scope (inputs : _ I.t) : _ O.t =
   ; dbg_fifo_rd = fifo_rd
   ; dbg_forklift_ready = forklift.ready
   ; dbg_fifo_used = fifo.used
+  ; dbg_forklift_data_in = forklift_data_in
+  ; dbg_forklift_valid_in = forklift_data_valid
+  ; dbg_forklift_data_out = forklift.data_out
   ; dbg_forklift_valid_out = forklift.valid_out
+  ; dbg_forklift_rri = forklift.dbg_rri
+  ; dbg_forklift_rci = forklift.dbg_rci
+  ; dbg_forklift_rmpaper = forklift.removed_paper_count
+  ; dbg_fl_grid_center = forklift.dbg_grid_center
   }
 ;;

@@ -61,7 +61,7 @@ let%expect_test "Forklift Test" =
   [%expect {|4|}];
   run_test_suite_case "Simple Input 2 (3x3)" [ [ 0; 1; 1 ]; [ 0; 1; 1 ]; [ 1; 0; 1 ] ];
   [%expect {|4|}];
-  run_test_suite_case "Simple Input 3 (3x3)" [ [ 1; 0; 1 ]; [ 1; 1; 0 ]; [ 0; 1; 1 ] ];
+  run_test_suite_case "Simple Input 4 (3x3)" [ [ 1; 0; 1 ]; [ 1; 1; 0 ]; [ 0; 1; 1 ] ];
   [%expect {|5|}];
   run_test_suite_case
     "Simple Input 3 (3x3)"
