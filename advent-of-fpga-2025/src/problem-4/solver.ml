@@ -6,6 +6,7 @@ let fifo_size = Config.max_row_size * Config.max_col_size
 module State = struct
   type t =
     | Idle
+    | Setup
     | ReadInput
     | Loop
     | Finished
@@ -28,7 +29,7 @@ module O = struct
   type 'a t =
     { finished : 'a
     ; total_removed_paper_count : 'a [@bits Config.removed_paper_count_bit_width]
-    ; dbg_sm : 'a [@bits 2]
+    ; dbg_sm : 'a [@bits 3]
     ; dbg_forklift_last : 'a
     ; dbg_fifo_rd : 'a
     ; dbg_forklift_ready : 'a
@@ -61,10 +62,16 @@ let create _scope (inputs : _ I.t) : _ O.t =
         ; total_removed_paper_count <--. 0
         ])
   in
+  let finish_reading =
+    feeding_row_idx.value
+    ==: num_rows.value -:. 1
+    &: (feeding_col_idx.value ==: num_cols.value -:. 1)
+  in
   Always.(
     compile
       [ sm.switch
           [ Idle, [ when_ inputs.data_valid [ setup; sm.set_next ReadInput ] ]
+          ; Setup, [ if_ finish_reading [ sm.set_next Loop ] [ sm.set_next ReadInput ] ]
           ; ( ReadInput
             , [ when_
                   inputs.data_valid
@@ -74,11 +81,7 @@ let create _scope (inputs : _ I.t) : _ O.t =
                       [ feeding_col_idx <--. 0
                       ; feeding_row_idx <-- feeding_row_idx.value +:. 1
                       ]
-                  ; when_
-                      (feeding_row_idx.value
-                       ==: num_rows.value -:. 1
-                       &: (feeding_col_idx.value ==: num_cols.value -:. 1))
-                      [ sm.set_next Loop ]
+                  ; when_ finish_reading [ sm.set_next Loop ]
                   ]
               ] )
           ; ( Loop

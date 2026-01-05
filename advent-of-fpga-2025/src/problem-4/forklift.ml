@@ -106,7 +106,7 @@ let create _scope (inputs : _ I.t) : _ O.t =
   let starting = ready &: inputs.data_valid in
   let running = inputs.data_valid &: ~:(sm.is Idle) in
   let finish_readonly_phase = running &: (offset.value <: num_cols.value) in
-  let calculating = running &: (sm.is ReadCalc |: sm.is CalcRemaining) in
+  let calculating = running &: sm.is ReadCalc |: sm.is CalcRemaining in
   let calculating_last_item =
     calculating
     &: (processing_row_idx.value
@@ -210,7 +210,7 @@ let create _scope (inputs : _ I.t) : _ O.t =
       proc
         [ valid_out <--. 0
         ; when_ starting [ num_rows <-- inputs.rows; num_cols <-- inputs.cols ]
-        ; when_ (starting |: running) [ read_in; shift_grid ]
+        ; when_ running [ read_in; shift_grid ]
         ; when_ calculating [ calculate ]
         ; if_ (calculating &: calculating_last_item) [ last <--. 1 ] [ last <--. 0 ]
         ])

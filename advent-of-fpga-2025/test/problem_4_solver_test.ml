@@ -29,7 +29,7 @@ let run_test_case (suite_name : string) (case_name : string) (test_input : int l
       i.num_cols := Bits.of_int num_cols ~width:Problem_4_Config.col_bit_width;
       i.data_valid := Bits.vdd;
       i.clear := Bits.gnd;
-      next_cycle sim;
+      next_cycle ~n:1 sim;
       let feed_input c =
         i.data_in := Bits.of_int c ~width:1;
         i.data_valid := Bits.vdd;

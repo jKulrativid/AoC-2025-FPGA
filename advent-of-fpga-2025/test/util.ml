@@ -14,8 +14,8 @@ let get_home () =
 let testdump_dirname = Filename.concat (get_home ()) "/tmp"
 let to_vcd_dump file_name = Printf.sprintf "%s/%s.vcd" testdump_dirname file_name
 
-let next_cycle ?(n = 0) sim =
-  for _ = 0 to n do
+let next_cycle ?(n = 1) sim =
+  for _ = 1 to n do
     Cyclesim.cycle sim
   done
 ;;
