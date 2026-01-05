@@ -6,9 +6,13 @@ module Problem_4_Config = Problem_4.Config
 include Util
 
 (* TODO: share this with the above test *)
-let run_test_case (name : string) (test_input : int list list) =
+let run_test_case (suite_name : string) (case_name : string) (test_input : int list list) =
   let module Sim = Cyclesim.With_interface (Forklift.I) (Forklift.O) in
-  let oc = to_vcd_dump name |> Out_channel.create in
+  let oc =
+    concat_test_suite_and_case_name suite_name case_name
+    |> to_vcd_dump
+    |> Out_channel.create
+  in
   Exn.protect
     ~f:(fun () ->
       let sim = Vcd.wrap oc @@ Sim.create @@ Forklift.create (Scope.create ()) in
@@ -51,16 +55,20 @@ let run_test_case (name : string) (test_input : int list list) =
 (* FIXME: implement formal verification *)
 
 let%expect_test "Forklift Test" =
-  run_test_case "Simple Input 1 (3x3)" [ [ 1; 1; 1 ]; [ 1; 1; 1 ]; [ 1; 1; 1 ] ];
+  let suite_name = "forklift test" in
+  let run_test_suite_case = run_test_case suite_name in
+  run_test_suite_case "Simple Input 1 (3x3)" [ [ 1; 1; 1 ]; [ 1; 1; 1 ]; [ 1; 1; 1 ] ];
   [%expect {|4|}];
-  run_test_case "Simple Input 2 (3x3)" [ [ 0; 1; 1 ]; [ 0; 1; 1 ]; [ 1; 0; 1 ] ];
+  run_test_suite_case "Simple Input 2 (3x3)" [ [ 0; 1; 1 ]; [ 0; 1; 1 ]; [ 1; 0; 1 ] ];
   [%expect {|4|}];
-  run_test_case "Simple Input 3 (3x3)" [ [ 1; 0; 1 ]; [ 1; 1; 0 ]; [ 0; 1; 1 ] ];
+  run_test_suite_case "Simple Input 3 (3x3)" [ [ 1; 0; 1 ]; [ 1; 1; 0 ]; [ 0; 1; 1 ] ];
   [%expect {|5|}];
-  run_test_case "Simple Input 3 (3x3)" [ [ 1; 0; 1; 1 ]; [ 1; 1; 0; 1 ]; [ 0; 1; 1; 1 ] ];
+  run_test_suite_case
+    "Simple Input 3 (3x3)"
+    [ [ 1; 0; 1; 1 ]; [ 1; 1; 0; 1 ]; [ 0; 1; 1; 1 ] ];
   [%expect {|6|}];
-  run_test_case "AoC Day 4 Test Input (10x10)" (read_input "inputs/day4_test.txt");
+  run_test_suite_case "AoC Day 4 Test Input (10x10)" (read_input "inputs/day4_test.txt");
   [%expect {|13|}];
-  run_test_case "AoC Day 4 Real Input (11x10)" (read_input "inputs/day4_real.txt");
+  run_test_suite_case "AoC Day 4 Real Input (11x10)" (read_input "inputs/day4_real.txt");
   [%expect {|1527|}]
 ;;

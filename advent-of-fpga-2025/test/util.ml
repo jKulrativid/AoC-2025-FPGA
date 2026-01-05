@@ -21,3 +21,7 @@ let next_cycle ?(n = 0) sim =
 ;;
 
 let read_input file_name = In_channel.read_all file_name |> Input_parser.Problem_4.parse
+
+let concat_test_suite_and_case_name suite_name case_name =
+  String.concat ~sep:"-" [ suite_name; case_name ]
+;;

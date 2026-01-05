@@ -4,9 +4,13 @@ open Problem_4
 include Util
 module Problem_4_Config = Problem_4.Config
 
-let run_test_case (name : string) (test_input : int list list) =
+let run_test_case (suite_name : string) (case_name : string) (test_input : int list list) =
   let module Sim = Cyclesim.With_interface (Solver.I) (Solver.O) in
-  let oc = to_vcd_dump name |> Out_channel.create in
+  let oc =
+    concat_test_suite_and_case_name suite_name case_name
+    |> to_vcd_dump
+    |> Out_channel.create
+  in
   Exn.protect
     ~f:(fun () ->
       let sim = Vcd.wrap oc @@ Sim.create @@ Solver.create (Scope.create ()) in
@@ -38,6 +42,7 @@ let run_test_case (name : string) (test_input : int list list) =
 ;;
 
 let%expect_test "AoC Day 4 Test Input (10x10)" =
-  run_test_case "test_input" (read_input "inputs/day4_test.txt");
-  [%expect {|4|}]
+  let run_suite_test_case = run_test_case "solver test" in
+  run_suite_test_case "AoC Day 4 Test Input (10x10)" (read_input "inputs/day4_test.txt");
+  [%expect {|43|}]
 ;;
