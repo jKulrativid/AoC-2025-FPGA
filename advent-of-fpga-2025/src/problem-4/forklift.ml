@@ -30,7 +30,8 @@ module O = struct
       (* valid out now act like 'start'; it won't pause reading input 
         TODO: implement AXI-like tvalid logic
       *)
-    ; last : 'a
+    ; last_input : 'a
+    ; last_output : 'a
     ; removed_paper_count : 'a [@bits Config.removed_paper_count_bit_width]
     ; dbg_rri : 'a [@bits Config.row_bit_width]
     ; dbg_rci : 'a [@bits Config.col_bit_width]
@@ -112,6 +113,11 @@ let create _scope (inputs : _ I.t) : _ O.t =
   in
   let finish_readonly_phase = running &: (offset.value ==: num_cols.value) in
   let calculating = running &: sm.is ReadCalc |: sm.is CalcRemaining in
+  let reading_last_item =
+    reading_row_idx.value
+    ==: num_rows.value -:. 1
+    &: (reading_col_idx.value ==: num_cols.value -:. 1)
+  in
   let calculating_last_item =
     calculating
     &: (processing_row_idx.value
@@ -246,7 +252,8 @@ let create _scope (inputs : _ I.t) : _ O.t =
   { O.ready
   ; data_out = data_out.value
   ; valid_out = valid_out.value
-  ; last = last.value
+  ; last_input = sm.is ReadCalc &: reading_last_item
+  ; last_output = last.value
   ; removed_paper_count = removed_paper_count.value
   ; dbg_rri = reading_row_idx.value
   ; dbg_rci = reading_col_idx.value

@@ -18,11 +18,11 @@ let run_test_case (suite_name : string) (case_name : string) (test_input : int l
       let sim = Vcd.wrap oc @@ Sim.create @@ Forklift.create (Scope.create ()) in
       let i = Cyclesim.inputs sim in
       let o = Cyclesim.outputs sim in
-      let rec run_cycle_until_last sim =
-        let is_last = Bits.to_int !(o.last) in
+      let rec run_cycle_until_last_output sim =
+        let is_last = Bits.to_int !(o.last_output) in
         if is_last <> 1 then (
           next_cycle sim;
-          run_cycle_until_last sim)
+          run_cycle_until_last_output sim)
       in
       let num_rows = List.length test_input in
       let num_cols = List.length @@ List.hd_exn @@ test_input in
@@ -45,7 +45,7 @@ let run_test_case (suite_name : string) (case_name : string) (test_input : int l
       in
       List.iteri test_input ~f:(fun ri r ->
         List.iteri r ~f:(fun ci c -> feed_input ri ci c));
-      run_cycle_until_last sim;
+      run_cycle_until_last_output sim;
       let actual = Bits.to_int !(o.removed_paper_count) in
       Stdio.printf "%d\n" actual;
       next_cycle sim (* include last cycle to the .vcd*))
@@ -69,6 +69,6 @@ let%expect_test "Forklift Test" =
   [%expect {|6|}];
   run_test_suite_case "AoC Day 4 Test Input (10x10)" (read_input "inputs/day4_test.txt");
   [%expect {|13|}];
-  run_test_suite_case "AoC Day 4 Real Input (11x10)" (read_input "inputs/day4_real.txt");
+  run_test_suite_case "AoC Day 4 Real Input (100x100)" (read_input "inputs/day4_real.txt");
   [%expect {|1527|}]
 ;;

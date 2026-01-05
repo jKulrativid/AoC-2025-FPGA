@@ -15,7 +15,7 @@ let run_test_case (suite_name : string) (case_name : string) (test_input : int l
   Exn.protect
     ~f:(fun () ->
       let sim = Vcd.wrap oc @@ Sim.create @@ Solver.create (Scope.create ()) in
-      let waves, sim = Waveform.create sim in
+      let _waves, sim = Waveform.create sim in
       let i = Cyclesim.inputs sim in
       let o = Cyclesim.outputs sim in
       let rec _run_until_finished sim =
@@ -41,7 +41,7 @@ let run_test_case (suite_name : string) (case_name : string) (test_input : int l
       _run_until_finished sim;
       let actual = Bits.to_int !(o.total_removed_paper_count) in
       Stdio.printf "%d\n" actual;
-      Waveform.print ~display_width:200 ~display_height:45 waves;
+      (* Waveform.print ~display_width:200 ~display_height:45 ~start_cycle:20 waves *)
       next_cycle sim (* include last cycle to the .vcd*))
     ~finally:(fun () -> Out_channel.close oc)
 ;;
@@ -54,12 +54,6 @@ let%expect_test "AoC Day 4 Test Input (10x10)" =
   [%expect {|9|}];
   run_test_suite_case "AoC Day 4 Test Input (10x10)" (read_input "inputs/day4_test.txt");
   [%expect {|43|}];
-  read_input "inputs/day4_test.txt"
-  |> List.fold_left ~init:0 ~f:(fun ac r -> ac + List.fold_left r ~init:0 ~f:( + ))
-  |> Int.to_string
-  |> print_endline
-;;
-(*
-  run_test_suite_case "AoC Day 4 Real Input (10x10)" (read_input "inputs/day4_real.txt");
+  run_test_suite_case "AoC Day 4 Real Input (100x100)" (read_input "inputs/day4_real.txt");
   [%expect {|8690|}]
-  *)
+;;
