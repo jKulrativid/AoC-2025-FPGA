@@ -40,6 +40,7 @@ clarifying: the "simplified code" should
 ## TODO ("make it right" step):
 
 - explain the test strategy and test structure
+- explain how i optimize for timing
 - 1st problem (day 4) can be further optimized with bit manipulation and popcount.
   explain: store row with int register and then grid will be a list of integers.
 - 1st problem (day 4): implement horizontal parallelism and SerDes to reduce latency (exploiting embarrasingly parallelism)

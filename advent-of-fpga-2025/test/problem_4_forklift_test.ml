@@ -1,7 +1,6 @@
 open! Core
 open Hardcaml
 open Problem_4
-open! Hardcaml_verify
 module Problem_4_Config = Problem_4.Config
 include Util
 
