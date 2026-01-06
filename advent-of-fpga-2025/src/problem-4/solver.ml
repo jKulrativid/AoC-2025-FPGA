@@ -29,18 +29,6 @@ module O = struct
   type 'a t =
     { finished : 'a
     ; total_removed_paper_count : 'a [@bits Config.removed_paper_count_bit_width]
-    ; dbg_sm : 'a [@bits 3]
-    ; dbg_fifo_rd : 'a
-    ; dbg_fifo_wr : 'a
-    ; dbg_fifo_used : 'a [@bits Config.row_bit_width + Config.col_bit_width]
-    ; dbg_fl_ilast : 'a
-    ; dbg_fl_olast : 'a
-    ; dbg_fl_din : 'a
-    ; dbg_fl_vin : 'a
-    ; dbg_fl_ready : 'a
-    ; dbg_fl_dout : 'a
-    ; dbg_fl_vout : 'a
-    ; dbg_forklift_rmpaper : 'a [@bits Config.removed_paper_count_bit_width]
     }
   [@@deriving hardcaml, sexp_of]
 end
@@ -154,17 +142,5 @@ let create _scope (inputs : _ I.t) : _ O.t =
   assign fifo_to_forklift fifo.q;
   { finished = sm.is Finished
   ; total_removed_paper_count = total_removed_paper_count.value
-  ; dbg_sm = sm.current
-  ; dbg_fl_ilast = forklift.last_input
-  ; dbg_fl_olast = forklift.last_output
-  ; dbg_fifo_rd = fifo_rd
-  ; dbg_fifo_wr = forklift.valid_out
-  ; dbg_fl_ready = forklift.ready
-  ; dbg_fifo_used = fifo.used
-  ; dbg_fl_din = forklift_data_in
-  ; dbg_fl_vin = forklift_data_valid
-  ; dbg_fl_dout = forklift.data_out
-  ; dbg_fl_vout = forklift.valid_out
-  ; dbg_forklift_rmpaper = forklift.removed_paper_count
   }
 ;;
