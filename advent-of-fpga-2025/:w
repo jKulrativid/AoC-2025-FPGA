@@ -1,0 +1,5 @@
+open! Base
+
+module Config = struct
+  type t = { kernel_size : int }
+end

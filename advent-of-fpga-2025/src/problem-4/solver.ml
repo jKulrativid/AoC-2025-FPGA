@@ -108,7 +108,7 @@ let create _scope (inputs : _ I.t) : _ O.t =
          (mux2 (sm.is ReadInput) inputs.data_valid gnd))
   in
   let forklift =
-    Forklift.create
+    Forklift_ctrl.create
       _scope
       { data_in = forklift_data_in
       ; data_valid = forklift_data_valid
