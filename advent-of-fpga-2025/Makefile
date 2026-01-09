@@ -9,6 +9,9 @@ install:
 uninstall:
 	dune uninstall $(INSTALL_ARGS)
 
+autopromote:
+	dune runtest --auto-promote
+
 reinstall: uninstall install
 
 clean:
