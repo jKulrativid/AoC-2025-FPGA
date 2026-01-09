@@ -8,11 +8,8 @@ module Make () : S = struct
   let kernel_col_size = 3
   let data_bit_width = 1 (* TODO: this should be configurable to support vectorization *)
   let result_bit_width = 1
-  let latency = 3 (* TODO: explain how you derive this number *)
-
-  let neighbors_count_bit_width =
-    kernel_row_size + kernel_col_size (* TODO: can be less *)
-  ;;
+  let latency = ((kernel_col_size + 1) / 2) + 1
+  let neighbors_count_bit_width = Int.ceil_log2 ((kernel_row_size * kernel_col_size) + 1)
 
   (* Grid-related variables *)
   let grid_middle_row_idx = (kernel_row_size - 1) / 2
@@ -28,7 +25,7 @@ module Make () : S = struct
       ; is_left : 'a
       ; is_right : 'a
       }
-    [@@deriving sexp_of, hardcaml ~rtlmangle:"$"]
+    [@@deriving sexp_of, hardcaml]
   end
 
   module I = struct
