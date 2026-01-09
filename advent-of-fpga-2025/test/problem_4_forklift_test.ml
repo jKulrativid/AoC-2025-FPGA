@@ -228,20 +228,21 @@ let%expect_test "Sliding Window 3x3 Logic" =
       |}];
   run_test_case
     "3x2 grid"
-    [ [ { d = 0; is_top = 0; is_bottom = 0; is_left = 0; is_right = 0 }
+    [ [ { d = 1; is_top = 0; is_bottom = 0; is_left = 0; is_right = 0 }
       ; { d = 1; is_top = 1; is_bottom = 0; is_left = 1; is_right = 0 }
       ; { d = 1; is_top = 0; is_bottom = 1; is_left = 1; is_right = 0 }
       ]
-    ; [ { d = 0; is_top = 0; is_bottom = 0; is_left = 0; is_right = 0 }
+    ; [ { d = 1; is_top = 0; is_bottom = 0; is_left = 0; is_right = 0 }
       ; { d = 1; is_top = 1; is_bottom = 0; is_left = 0; is_right = 0 }
       ; { d = 1; is_top = 0; is_bottom = 1; is_left = 0; is_right = 0 }
       ]
-    ; [ { d = 0; is_top = 0; is_bottom = 0; is_left = 0; is_right = 0 }
+    ; [ { d = 1; is_top = 0; is_bottom = 0; is_left = 0; is_right = 0 }
       ; { d = 1; is_top = 1; is_bottom = 0; is_left = 0; is_right = 1 }
       ; { d = 0; is_top = 0; is_bottom = 1; is_left = 0; is_right = 1 }
       ]
     ];
-  [%expect {|
+  [%expect
+    {|
     ┌Signals───────────┐┌Waves─────────────────────────────────┐
     │clock             ││┌─┐ ┌─┐ ┌─┐ ┌─┐ ┌─┐ ┌─┐ ┌─┐ ┌─┐ ┌─┐ ┌─│
     │                  ││  └─┘ └─┘ └─┘ └─┘ └─┘ └─┘ └─┘ └─┘ └─┘ │
@@ -249,8 +250,8 @@ let%expect_test "Sliding Window 3x3 Logic" =
     │                  ││    └───────────────────────          │
     │enable            ││────────────────────────────          │
     │                  ││                                      │
-    │data_in$d0        ││                                      │
-    │                  ││────────────────────────────          │
+    │data_in$d0        ││    ┌───────────┐                     │
+    │                  ││────┘           └───────────          │
     │data_in$d1        ││    ┌───────────┐                     │
     │                  ││────┘           └───────────          │
     │data_in$d2        ││    ┌───────┐                         │
@@ -279,8 +280,8 @@ let%expect_test "Sliding Window 3x3 Logic" =
     │                  ││────┘           └───────────          │
     │data_in$is_top2   ││                                      │
     │                  ││────────────────────────────          │
-    │data_out$d0       ││                                      │
-    │                  ││────────────────────────────          │
+    │data_out$d0       ││                ┌───────────          │
+    │                  ││────────────────┘                     │
     │data_out$d1       ││                ┌───────────          │
     │                  ││────────────────┘                     │
     │data_out$d2       ││                ┌───────┐             │
