@@ -8,7 +8,13 @@ module Make () : S = struct
   let kernel_col_size = 3
   let data_bit_width = 1 (* TODO: this should be configurable to support vectorization *)
   let result_bit_width = 1
-  let latency = ((kernel_col_size + 1) / 2) + 1
+
+  let latency =
+    let regs_between_input_to_middle_count = (kernel_col_size + 1) / 2 in
+    let output_register = 1 in
+    regs_between_input_to_middle_count + output_register
+  ;;
+
   let neighbors_count_bit_width = Int.ceil_log2 ((kernel_row_size * kernel_col_size) + 1)
 
   (* Grid-related variables *)
