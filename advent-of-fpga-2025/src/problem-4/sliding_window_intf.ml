@@ -11,6 +11,8 @@ module type S = sig
   module Cell : sig
     type 'a t =
       { d : 'a
+      ; valid : 'a
+      ; last : 'a
       ; is_top : 'a
       ; is_bottom : 'a
       ; is_left : 'a

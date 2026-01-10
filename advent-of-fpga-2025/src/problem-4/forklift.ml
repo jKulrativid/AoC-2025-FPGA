@@ -26,6 +26,8 @@ module Make () : S = struct
   module Cell = struct
     type 'a t =
       { d : 'a [@bits data_bit_width]
+      ; valid : 'a
+      ; last : 'a
       ; is_top : 'a
       ; is_bottom : 'a
       ; is_left : 'a
