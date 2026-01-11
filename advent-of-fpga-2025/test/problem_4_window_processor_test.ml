@@ -1,0 +1,127 @@
+open! Base
+open Hardcaml
+open Hardcaml_waveterm
+open Problem_4
+include Util
+
+let parse_simple_grid str : int list list =
+  String.split_lines str
+  |> List.map ~f:String.strip
+  |> List.filter ~f:(fun s -> String.length s > 0)
+  |> List.map ~f:(fun line ->
+    String.split line ~on:' '
+    |> List.filter ~f:(fun s -> String.length s > 0)
+    |> List.map ~f:(function
+      | "x" | "X" -> 0
+      | s -> Int.of_string s))
+;;
+
+let run_test_case ?(print_waves = false) (case_name : string) (grid : int list list) =
+  let rows = List.length grid in
+  let cols = List.length (List.hd_exn grid) in
+  let module Cfg = struct
+    let input_row_bit_width = 16
+    let input_col_bit_width = 16
+  end
+  in
+  let module Sliding_window = Forklift.Make () in
+  let module Dut = Window_processor.Make (Cfg) (Sliding_window) in
+  let module Sim = Cyclesim.With_interface (Dut.I) (Dut.O) in
+  let sim = Sim.create (Dut.create (Scope.create ~flatten_design:true ())) in
+  let waves, sim = Waveform.create sim in
+  let i = Cyclesim.inputs sim in
+  let o = Cyclesim.outputs sim in
+  i.clear := Bits.vdd;
+  i.enable := Bits.vdd;
+  next_cycle sim;
+  i.clear := Bits.gnd;
+  i.start := Bits.vdd;
+  i.row_size := Bits.of_int ~width:Dut.input_row_bit_width rows;
+  i.col_size := Bits.of_int ~width:Dut.input_col_bit_width cols;
+  next_cycle sim;
+  i.start := Bits.gnd;
+  List.iter grid ~f:(fun row ->
+    List.iter row ~f:(fun pixel ->
+      let rec wait_for_ready safety =
+        if safety = 0 then
+          failwith "Timeout waiting for Ready";
+        if Bits.to_bool !(o.ready) then
+          ()
+        else (
+          next_cycle sim;
+          wait_for_ready (safety - 1))
+      in
+      wait_for_ready 100;
+      i.data_in := Bits.of_int ~width:1 pixel;
+      i.data_in_valid := Bits.vdd;
+      next_cycle sim));
+  i.data_in_valid := Bits.gnd;
+  let rec drain limit =
+    if limit = 0 then
+      failwith "Timeout draining pipeline";
+    next_cycle sim;
+    if Bits.to_bool !(o.idle) then
+      ()
+    else
+      drain (limit - 1)
+  in
+  drain (rows * cols * 4);
+  let result = Bits.to_int !(o.total_count) in
+  Stdio.printf "%s: %d\n" case_name result;
+  next_cycle sim;
+  if print_waves then
+    let open Display_rule in
+    let rules =
+      [ port_name_is "clock"
+      ; port_name_is "idle"
+      ; port_name_is "ready"
+      ; port_name_matches (Re.Posix.compile_pat "data_in.*")
+      ; port_name_matches (Re.Posix.compile_pat "data_out.*")
+      ; port_name_is "total_count" ~wave_format:Unsigned_int
+      ]
+    in
+    Waveform.print ~display_width:200 ~display_height:30 ~display_rules:rules waves
+;;
+
+let%expect_test "Forklift Window Processor" =
+  run_test_case
+    ~print_waves:true
+    "All Ones (3x3)"
+    (parse_simple_grid
+       {|
+        1 1 1
+        1 1 1
+        1 1 1
+      |});
+  [%expect {||}];
+  run_test_case
+    ~print_waves:true
+    "Diamond (3x3)"
+    (parse_simple_grid
+       {|
+        0 1 0
+        1 1 1
+        0 1 0
+      |});
+  [%expect {||}];
+  run_test_case
+    ~print_waves:true
+    "Standard (3x2)"
+    (parse_simple_grid
+       {|
+        0 0 0
+        1 1 1
+        1 1 0
+      |});
+  [%expect {||}];
+  run_test_case
+    ~print_waves:true
+    "Shifted Bottom (3x2)"
+    (parse_simple_grid
+       {|
+        1 1 1
+        1 1 1
+        1 0 1
+      |});
+  [%expect {||}]
+;;

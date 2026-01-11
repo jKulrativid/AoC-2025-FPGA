@@ -1,0 +1,206 @@
+open! Base
+open Hardcaml
+
+module type Config = sig
+  val input_row_bit_width : int
+  val input_col_bit_width : int
+end
+
+module Make (Cfg : Config) (Sw : Sliding_window_intf.S) = struct
+  let input_row_bit_width = Cfg.input_row_bit_width
+  let input_col_bit_width = Cfg.input_col_bit_width
+  let max_input_row_size = Int.pow 2 Cfg.input_row_bit_width
+  let max_input_col_size = Int.pow 2 Cfg.input_col_bit_width
+  let total_count_bit_width = Int.ceil_log2 ((max_input_col_size * max_input_row_size) + 1)
+
+  module Var = Always.Variable
+
+  module State = struct
+    type t =
+      | Idle
+      | ReadInput
+      | Flush
+      | Finished
+    [@@deriving compare, enumerate, sexp_of]
+  end
+
+  module I = struct
+    type 'a t =
+      { clear : 'a
+      ; clock : 'a
+      ; col_size : 'a [@bits Cfg.input_col_bit_width]
+      ; enable : 'a
+      ; data_in : 'a [@bits Sw.data_bit_width]
+      ; data_in_valid : 'a
+      ; row_size : 'a [@bits Cfg.input_row_bit_width]
+      ; start : 'a
+      }
+    [@@deriving sexp_of, hardcaml ~rtlmangle:"$"]
+  end
+
+  module O = struct
+    type 'a t =
+      { data_out : 'a [@bits Sw.result_bit_width]
+      ; data_out_valid : 'a
+      ; idle : 'a
+      ; last : 'a
+      ; ready : 'a
+      ; total_count : 'a [@bits total_count_bit_width]
+      }
+    [@@deriving sexp_of, hardcaml ~rtlmangle:"$"]
+  end
+
+  (** Count bits that is 1 at prev but 0 at current *)
+  let count prev current =
+    let open Signal in
+    let c = prev &: ~:current |> popcount in
+    uresize c total_count_bit_width
+  ;;
+
+  (** Creates a cascade of Line Buffers (RAMs) to store previous image rows.
+      
+      Returns the buffered rows ordered from **Oldest (Top)** to **Newest (Bottom-1)**.
+      
+      Data Path:  [data_in] -> [RAM_N-1] -> ... -> [RAM_0]
+      List Order: [ RAM_0; RAM_1; ...; RAM_N-1 ]
+
+      Note: The result does NOT include the current [data_in]. You must append it manually. *)
+  let create_line_buffers
+        ~clock
+        ~write_enable
+        ~read_enable
+        ~reading_col_idx
+        ~col_size
+        ~(data_in : _ Sw.Cell.t)
+        ()
+    : _ Sw.Cell.t array
+    =
+    let open Signal in
+    let total_ram_count = Sw.kernel_row_size - 1 in
+    let wptr = reading_col_idx in
+    let rptr =
+      mux2
+        (reading_col_idx +:. 1 <: col_size)
+        (reading_col_idx +:. 1)
+        (zero Cfg.input_col_bit_width)
+    in
+    let create_ram (wd_cell : _ Sw.Cell.t) : _ Sw.Cell.t =
+      let wd = Sw.Cell.Of_signal.pack wd_cell in
+      let r =
+        Ram.create
+          ~collision_mode:Write_before_read
+          ~size:max_input_col_size
+          ~write_ports:
+            [| { write_clock = clock
+               ; write_data = wd
+               ; write_enable
+               ; write_address = wptr
+               }
+            |]
+          ~read_ports:[| { read_clock = clock; read_enable; read_address = rptr } |]
+          ()
+      in
+      let rd = r.(0) in
+      Sw.Cell.Of_signal.unpack rd
+    in
+    Fn.apply_n_times
+      ~n:total_ram_count
+      (fun (ram_rd_acc, prev_rd) ->
+         let ram_rd = create_ram prev_rd in
+         ram_rd :: ram_rd_acc, ram_rd)
+      ([], data_in)
+    |> fst
+    |> Array.of_list
+  ;;
+
+  let create scope (inputs : _ I.t) : _ O.t =
+    let open Signal in
+    let enable = inputs.enable in
+    let spec = Reg_spec.create ~clock:inputs.clock ~clear:inputs.clear () in
+    let sm = Always.State_machine.create ~enable (module State) spec in
+    let idle = mux2 (sm.is Idle) vdd gnd in
+    let ready = mux2 (sm.is ReadInput) vdd gnd in
+    let row_size = Var.reg spec ~enable ~width:Cfg.input_row_bit_width in
+    let col_size = Var.reg spec ~enable ~width:Cfg.input_col_bit_width in
+    let reading_row_idx = Var.reg spec ~enable ~width:Cfg.input_row_bit_width in
+    let reading_col_idx = Var.reg spec ~enable ~width:Cfg.input_col_bit_width in
+    let next_row_idx = reading_row_idx.value +:. 1 in
+    let next_col_idx = reading_col_idx.value +:. 1 in
+    let reading_col_idx_at_last_col = next_col_idx ==: col_size.value in
+    let last_input =
+      reading_row_idx.value +:. 1
+      ==: row_size.value
+      &: (reading_col_idx.value +:. 1 ==: col_size.value)
+    in
+    let result_wire = Sw.Result.map Sw.Result.port_widths ~f:wire in
+    let result_count = count result_wire.prev result_wire.d in
+    let total_count = Var.reg spec ~enable ~width:total_count_bit_width in
+    Always.(
+      let update_read_idx =
+        proc
+          [ reading_col_idx <-- next_col_idx
+          ; when_
+              reading_col_idx_at_last_col
+              [ reading_col_idx <--. 0; reading_row_idx <-- next_row_idx ]
+          ]
+      in
+      compile
+        [ sm.switch
+            [ ( Idle
+              , [ total_count <--. 0
+                ; reading_row_idx <--. 0
+                ; reading_col_idx <--. 0
+                ; when_
+                    inputs.start
+                    [ row_size <-- inputs.row_size
+                    ; col_size <-- inputs.col_size
+                    ; sm.set_next ReadInput
+                    ]
+                ] )
+            ; ( ReadInput
+              , [ when_
+                    inputs.data_in_valid
+                    [ update_read_idx; when_ last_input [ sm.set_next Flush ] ]
+                ] )
+            ; Flush, [ update_read_idx; when_ result_wire.last [ sm.set_next Finished ] ]
+            ; Finished, [ sm.set_next Idle ]
+            ]
+        ; when_ result_wire.valid [ total_count <-- total_count.value +: result_count ]
+        ]);
+    let write_enable = enable &: sm.is ReadInput in
+    let read_enable = enable &: (sm.is ReadInput |: sm.is Flush) in
+    let data_in_cell =
+      { Sw.Cell.d = inputs.data_in
+      ; valid = inputs.data_in_valid
+      ; last = last_input
+      ; top = reading_row_idx.value ==:. 0
+      ; bottom = reading_row_idx.value +:. 1 ==: row_size.value
+      ; left = reading_col_idx.value ==:. 0
+      ; right = reading_col_idx.value +:. 1 ==: col_size.value
+      }
+    in
+    let buffered_rows =
+      create_line_buffers
+        ~clock:inputs.clock
+        ~write_enable
+        ~read_enable
+        ~reading_col_idx:reading_col_idx.value
+        ~col_size:col_size.value
+        ~data_in:data_in_cell
+        ()
+    in
+    let data_in = Array.(append buffered_rows (of_list [ data_in_cell ])) in
+    let { Sw.O.data_out = _; result = result_next } =
+      Sw.create scope { Sw.I.clear = inputs.clear; clock = inputs.clock; enable; data_in }
+    in
+    Sw.Result.iter2 result_wire result_next ~f:assign;
+    let result = Sw.Result.map result_next ~f:(reg spec ~enable) in
+    { data_out = result.d
+    ; data_out_valid = result.valid
+    ; idle
+    ; last = result.last
+    ; ready
+    ; total_count = total_count.value
+    }
+  ;;
+end

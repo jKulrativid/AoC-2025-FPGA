@@ -23,7 +23,8 @@ module type S = sig
 
   module Result : sig
     type 'a t =
-      { d : 'a
+      { prev : 'a
+      ; d : 'a
       ; last : 'a
       ; valid : 'a
       }

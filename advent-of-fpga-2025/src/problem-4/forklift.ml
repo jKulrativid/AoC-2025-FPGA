@@ -27,7 +27,7 @@ module Make () : S = struct
     type 'a t =
       { d : 'a [@bits data_bit_width]
       ; last : 'a
-      ; valid : 'a
+      ; valid : 'a (* TODO: consider removing this field *)
       ; top : 'a
       ; bottom : 'a
       ; left : 'a
@@ -38,7 +38,8 @@ module Make () : S = struct
 
   module Result = struct
     type 'a t =
-      { d : 'a [@bits result_bit_width]
+      { prev : 'a [@bits data_bit_width]
+      ; d : 'a [@bits result_bit_width]
       ; last : 'a
       ; valid : 'a
       }
@@ -130,7 +131,11 @@ module Make () : S = struct
       |> tree ~arity:2 ~f:(fun r -> r |> List.reduce_exn ~f:( +: ))
     in
     let is_accessible = neighbors_count <:. 4 in
-    { Result.d = middle.d &: ~:is_accessible; last = middle.last; valid = middle.valid }
+    { Result.prev = middle.d
+    ; d = middle.d &: ~:is_accessible
+    ; last = middle.last
+    ; valid = middle.valid
+    }
   ;;
 
   let create _scope (inputs : _ I.t) : _ O.t =

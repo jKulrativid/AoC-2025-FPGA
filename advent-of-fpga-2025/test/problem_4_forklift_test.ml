@@ -6,6 +6,8 @@ include Util
 module Problem_4_Config = Problem_4.Config
 module Forklift = Forklift.Make ()
 
+(* TODO: verify that setting enable=0 actually stops the circuit entirely *)
+
 let int_of_binary s =
   String.fold s ~init:0 ~f:(fun acc c ->
     (acc lsl 1)
@@ -39,7 +41,7 @@ let parse_explicit_grid str =
     List.map tokens ~f:(fun token ->
       match String.lowercase token with
       | "x" ->
-        (* invalid data *)
+        (* do-not-care *)
         { Forklift.Cell.d = 0
         ; valid = 0
         ; last = 0
@@ -92,16 +94,6 @@ let run_test_case (case_name : string) (test_input : int Forklift.Cell.t list li
   let oc =
     concat_test_suite_and_case_name "" case_name |> to_vcd_dump |> Out_channel.create
   in
-  let input_bit_width : int Forklift.Cell.t =
-    { d = Forklift.data_bit_width
-    ; valid = 1
-    ; last = 1
-    ; top = 1
-    ; bottom = 1
-    ; left = 1
-    ; right = 1
-    }
-  in
   Exn.protect
     ~f:(fun () ->
       let sim = Vcd.wrap oc @@ Sim.create @@ Forklift.create (Scope.create ()) in
@@ -116,14 +108,14 @@ let run_test_case (case_name : string) (test_input : int Forklift.Cell.t list li
       |> List.iteri ~f:(fun _ inputs ->
         List.iteri inputs ~f:(fun data_in_idx data_in ->
           let input_signals =
-            Forklift.Cell.map2 data_in input_bit_width ~f:(fun v width ->
+            Forklift.Cell.map2 data_in Forklift.Cell.port_widths ~f:(fun v width ->
               Bits.of_int v ~width)
           in
           let hardware_port = i.data_in.(data_in_idx) in
           Forklift.Cell.iter2 hardware_port input_signals ~f:( := ));
         next_cycle sim);
       Array.iter i.data_in ~f:(fun cell ->
-        Forklift.Cell.iter2 cell input_bit_width ~f:(fun p width ->
+        Forklift.Cell.iter2 cell Forklift.Cell.port_widths ~f:(fun p width ->
           p := Bits.of_int ~width 0));
       next_cycle sim ~n:Forklift.latency;
       Waveform.print
@@ -205,11 +197,11 @@ let%expect_test "Sliding Window 3x3 Logic (Refactored)" =
     │result$last       ││ 0                                    │
     │                  ││────────────────────────────          │
     │                  ││────────────────┬───────────          │
+    │result$prev       ││ 0              │1                    │
+    │                  ││────────────────┴───────────          │
+    │                  ││────────────────┬───────────          │
     │result$valid      ││ 0              │1                    │
     │                  ││────────────────┴───────────          │
-    │                  ││                                      │
-    │                  ││                                      │
-    │                  ││                                      │
     └──────────────────┘└──────────────────────────────────────┘
     |}];
   run_test_case
@@ -272,11 +264,11 @@ let%expect_test "Sliding Window 3x3 Logic (Refactored)" =
     │result$last       ││ 0                                    │
     │                  ││────────────────────────────          │
     │                  ││────────────────┬───────────          │
+    │result$prev       ││ 0              │1                    │
+    │                  ││────────────────┴───────────          │
+    │                  ││────────────────┬───────────          │
     │result$valid      ││ 0              │1                    │
     │                  ││────────────────┴───────────          │
-    │                  ││                                      │
-    │                  ││                                      │
-    │                  ││                                      │
     └──────────────────┘└──────────────────────────────────────┘
     |}];
   run_test_case
@@ -339,11 +331,11 @@ let%expect_test "Sliding Window 3x3 Logic (Refactored)" =
     │result$last       ││ 0                                    │
     │                  ││────────────────────────────          │
     │                  ││────────────────┬───────────          │
+    │result$prev       ││ 0              │1                    │
+    │                  ││────────────────┴───────────          │
+    │                  ││────────────────┬───────────          │
     │result$valid      ││ 0              │1                    │
     │                  ││────────────────┴───────────          │
-    │                  ││                                      │
-    │                  ││                                      │
-    │                  ││                                      │
     └──────────────────┘└──────────────────────────────────────┘
     |}];
   run_test_case
@@ -405,12 +397,12 @@ let%expect_test "Sliding Window 3x3 Logic (Refactored)" =
     │                  ││────────────────────────┬───          │
     │result$last       ││ 0                      │1            │
     │                  ││────────────────────────┴───          │
+    │                  ││────────────────┬───────┬───          │
+    │result$prev       ││ 0              │1      │0            │
+    │                  ││────────────────┴───────┴───          │
     │                  ││────────────────┬───────────          │
     │result$valid      ││ 0              │1                    │
     │                  ││────────────────┴───────────          │
-    │                  ││                                      │
-    │                  ││                                      │
-    │                  ││                                      │
     └──────────────────┘└──────────────────────────────────────┘
     |}]
 ;;
