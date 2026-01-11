@@ -11,12 +11,21 @@ module type S = sig
   module Cell : sig
     type 'a t =
       { d : 'a
-      ; valid : 'a
       ; last : 'a
-      ; is_top : 'a
-      ; is_bottom : 'a
-      ; is_left : 'a
-      ; is_right : 'a
+      ; valid : 'a
+      ; top : 'a
+      ; bottom : 'a
+      ; left : 'a
+      ; right : 'a
+      }
+    [@@deriving sexp_of, hardcaml]
+  end
+
+  module Result : sig
+    type 'a t =
+      { d : 'a
+      ; last : 'a
+      ; valid : 'a
       }
     [@@deriving sexp_of, hardcaml]
   end
@@ -34,7 +43,7 @@ module type S = sig
   module O : sig
     type 'a t =
       { data_out : 'a Cell.t array
-      ; result : 'a
+      ; result : 'a Result.t
       }
     [@@deriving sexp_of, hardcaml]
   end

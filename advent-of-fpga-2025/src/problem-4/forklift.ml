@@ -26,12 +26,21 @@ module Make () : S = struct
   module Cell = struct
     type 'a t =
       { d : 'a [@bits data_bit_width]
-      ; valid : 'a
       ; last : 'a
-      ; is_top : 'a
-      ; is_bottom : 'a
-      ; is_left : 'a
-      ; is_right : 'a
+      ; valid : 'a
+      ; top : 'a
+      ; bottom : 'a
+      ; left : 'a
+      ; right : 'a
+      }
+    [@@deriving sexp_of, hardcaml]
+  end
+
+  module Result = struct
+    type 'a t =
+      { d : 'a [@bits result_bit_width]
+      ; last : 'a
+      ; valid : 'a
       }
     [@@deriving sexp_of, hardcaml]
   end
@@ -49,7 +58,7 @@ module Make () : S = struct
   module O = struct
     type 'a t =
       { data_out : 'a Cell.t array [@length kernel_row_size]
-      ; result : 'a [@bits result_bit_width]
+      ; result : 'a Result.t
       }
     [@@deriving sexp_of, hardcaml ~rtlmangle:"$"]
   end
@@ -76,18 +85,18 @@ module Make () : S = struct
     let row_mask =
       Array.init kernel_row_size ~f:(fun ri ->
         if ri = 0 then
-          ~:(middle.is_top)
+          ~:(middle.top)
         else if ri = grid_last_row_idx then
-          ~:(middle.is_bottom)
+          ~:(middle.bottom)
         else
           vdd)
     in
     let col_mask =
       Array.init kernel_col_size ~f:(fun ri ->
         if ri = 0 then
-          ~:(middle.is_left)
+          ~:(middle.left)
         else if ri = grid_last_col_idx then
-          ~:(middle.is_right)
+          ~:(middle.right)
         else
           vdd)
     in
@@ -100,7 +109,7 @@ module Make () : S = struct
   ;;
 
   (* modify calculatin here *)
-  let calculate ~(grid : _ Cell.t array array) =
+  let calculate ~(grid : _ Cell.t array array) : _ Result.t =
     let open Signal in
     let middle = grid.(grid_middle_row_idx).(grid_middle_col_idx) in
     let grid_mask = create_mask middle in
@@ -119,11 +128,9 @@ module Make () : S = struct
       |> List.of_array
       |> List.map ~f:count_col_neighbors_fn
       |> tree ~arity:2 ~f:(fun r -> r |> List.reduce_exn ~f:( +: ))
-      (* |> ( -: ) (uresize middle.d neighbors_count_bit_width) *)
-      (* sub out middle item *)
     in
     let is_accessible = neighbors_count <:. 4 in
-    middle.d &: ~:is_accessible
+    { Result.d = middle.d &: ~:is_accessible; last = middle.last; valid = middle.valid }
   ;;
 
   let create _scope (inputs : _ I.t) : _ O.t =
@@ -131,7 +138,8 @@ module Make () : S = struct
     let spec = Reg_spec.create ~clock:inputs.clock ~clear:inputs.clear () in
     let grid = create_grid spec ~enable:inputs.enable ~data_in:inputs.data_in in
     let data_out = Array.map grid ~f:(fun r -> r.(0)) in
-    let result = reg spec ~enable:inputs.enable (calculate ~grid) in
+    let result_next = calculate ~grid in
+    let result = Result.map result_next ~f:(reg spec ~enable:inputs.enable) in
     { O.data_out; result }
   ;;
 end

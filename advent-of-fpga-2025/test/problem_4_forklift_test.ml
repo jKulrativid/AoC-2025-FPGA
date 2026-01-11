@@ -43,10 +43,10 @@ let parse_explicit_grid str =
         { Forklift.Cell.d = 0
         ; valid = 0
         ; last = 0
-        ; is_top = 0
-        ; is_bottom = 0
-        ; is_left = 0
-        ; is_right = 0
+        ; top = 0
+        ; bottom = 0
+        ; left = 0
+        ; right = 0
         }
       | _ ->
         let parts = String.split token ~on:',' in
@@ -62,22 +62,22 @@ let parse_explicit_grid str =
                   1
                 else
                   0)
-           ; is_top =
+           ; top =
                (if r = 1 then
                   1
                 else
                   0)
-           ; is_bottom =
+           ; bottom =
                (if r = row_size then
                   1
                 else
                   0)
-           ; is_left =
+           ; left =
                (if c = 1 then
                   1
                 else
                   0)
-           ; is_right =
+           ; right =
                (if c = col_size then
                   1
                 else
@@ -96,10 +96,10 @@ let run_test_case (case_name : string) (test_input : int Forklift.Cell.t list li
     { d = Forklift.data_bit_width
     ; valid = 1
     ; last = 1
-    ; is_top = 1
-    ; is_bottom = 1
-    ; is_left = 1
-    ; is_right = 1
+    ; top = 1
+    ; bottom = 1
+    ; left = 1
+    ; right = 1
     }
   in
   Exn.protect
@@ -130,7 +130,7 @@ let run_test_case (case_name : string) (test_input : int Forklift.Cell.t list li
         ~wave_width:1
         ~signals_width:20
         ~display_width:60
-        ~display_height:50
+        ~display_height:55
         ~display_rules:
           [ Display_rule.port_name_is "clock"
           ; Display_rule.port_name_is "enable"
@@ -199,9 +199,14 @@ let%expect_test "Sliding Window 3x3 Logic (Refactored)" =
     │data_out$valid2   ││ 0              │1                    │
     │                  ││────────────────┴───────────          │
     │                  ││────────────────┬───────────          │
-    │result            ││ 0              │1                    │
+    │result$d          ││ 0              │1                    │
     │                  ││────────────────┴───────────          │
-    │                  ││                                      │
+    │                  ││────────────────────────────          │
+    │result$last       ││ 0                                    │
+    │                  ││────────────────────────────          │
+    │                  ││────────────────┬───────────          │
+    │result$valid      ││ 0              │1                    │
+    │                  ││────────────────┴───────────          │
     │                  ││                                      │
     │                  ││                                      │
     │                  ││                                      │
@@ -261,9 +266,14 @@ let%expect_test "Sliding Window 3x3 Logic (Refactored)" =
     │data_out$valid2   ││ 0              │1                    │
     │                  ││────────────────┴───────────          │
     │                  ││────────────────────┬───┬───          │
-    │result            ││ 0                  │1  │0            │
+    │result$d          ││ 0                  │1  │0            │
     │                  ││────────────────────┴───┴───          │
-    │                  ││                                      │
+    │                  ││────────────────────────────          │
+    │result$last       ││ 0                                    │
+    │                  ││────────────────────────────          │
+    │                  ││────────────────┬───────────          │
+    │result$valid      ││ 0              │1                    │
+    │                  ││────────────────┴───────────          │
     │                  ││                                      │
     │                  ││                                      │
     │                  ││                                      │
@@ -323,9 +333,14 @@ let%expect_test "Sliding Window 3x3 Logic (Refactored)" =
     │data_out$valid2   ││ 0              │1                    │
     │                  ││────────────────┴───────────          │
     │                  ││────────────────────┬───┬───          │
-    │result            ││ 0                  │1  │0            │
+    │result$d          ││ 0                  │1  │0            │
     │                  ││────────────────────┴───┴───          │
-    │                  ││                                      │
+    │                  ││────────────────────────────          │
+    │result$last       ││ 0                                    │
+    │                  ││────────────────────────────          │
+    │                  ││────────────────┬───────────          │
+    │result$valid      ││ 0              │1                    │
+    │                  ││────────────────┴───────────          │
     │                  ││                                      │
     │                  ││                                      │
     │                  ││                                      │
@@ -385,12 +400,17 @@ let%expect_test "Sliding Window 3x3 Logic (Refactored)" =
     │data_out$valid2   ││ 0                                    │
     │                  ││────────────────────────────          │
     │                  ││────────────────────┬───┬───          │
-    │result            ││ 0                  │1  │0            │
+    │result$d          ││ 0                  │1  │0            │
     │                  ││────────────────────┴───┴───          │
-    │                  ││                                      │
+    │                  ││────────────────────────┬───          │
+    │result$last       ││ 0                      │1            │
+    │                  ││────────────────────────┴───          │
+    │                  ││────────────────┬───────────          │
+    │result$valid      ││ 0              │1                    │
+    │                  ││────────────────┴───────────          │
     │                  ││                                      │
     │                  ││                                      │
     │                  ││                                      │
     └──────────────────┘└──────────────────────────────────────┘
-      |}]
+    |}]
 ;;
