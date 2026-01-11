@@ -16,7 +16,7 @@ let parse_simple_grid str : int list list =
       | s -> Int.of_string s))
 ;;
 
-let run_test_case ?(print_waves = false) (case_name : string) (grid : int list list) =
+let run_test_case ?(print_waves = false) (grid : int list list) =
   let rows = List.length grid in
   let cols = List.length (List.hd_exn grid) in
   let module Cfg = struct
@@ -59,16 +59,18 @@ let run_test_case ?(print_waves = false) (case_name : string) (grid : int list l
   let rec drain limit =
     if limit = 0 then
       failwith "Timeout draining pipeline";
-    next_cycle sim;
     if Bits.to_bool !(o.idle) then
       ()
-    else
-      drain (limit - 1)
+    else (
+      next_cycle sim;
+      drain (limit - 1))
   in
-  drain (rows * cols * 4);
+  Stdio.print_endline @@ Int.to_string @@ rows;
+  Stdio.print_endline @@ Int.to_string @@ cols;
+  drain ((rows * cols * 4) + 10);
   let result = Bits.to_int !(o.total_count) in
-  Stdio.printf "%s: %d\n" case_name result;
-  next_cycle sim;
+  Stdio.printf "Result: %d\n" result;
+  next_cycle sim (* sim 1 cycle to make latest one appear in the waveform *);
   if print_waves then
     let open Display_rule in
     let rules =
@@ -80,48 +82,61 @@ let run_test_case ?(print_waves = false) (case_name : string) (grid : int list l
       ; port_name_is "total_count" ~wave_format:Unsigned_int
       ]
     in
-    Waveform.print ~display_width:200 ~display_height:30 ~display_rules:rules waves
+    Waveform.print
+      ~wave_width:1
+      ~display_width:100
+      ~display_height:30
+      ~display_rules:rules
+      waves
 ;;
 
 let%expect_test "Forklift Window Processor" =
+  run_test_case ~print_waves:true (parse_simple_grid {|0|});
+  [%expect {||}];
+  run_test_case ~print_waves:true (parse_simple_grid {|1|});
+  [%expect {||}];
   run_test_case
     ~print_waves:true
-    "All Ones (3x3)"
     (parse_simple_grid
        {|
         1 1 1
         1 1 1
         1 1 1
       |});
-  [%expect {||}];
+  [%expect
+    {|
+    |}];
   run_test_case
     ~print_waves:true
-    "Diamond (3x3)"
     (parse_simple_grid
        {|
         0 1 0
         1 1 1
         0 1 0
       |});
-  [%expect {||}];
+  [%expect
+    {|
+    |}];
   run_test_case
     ~print_waves:true
-    "Standard (3x2)"
     (parse_simple_grid
        {|
         0 0 0
         1 1 1
         1 1 0
       |});
-  [%expect {||}];
+  [%expect
+    {|
+    |}];
   run_test_case
     ~print_waves:true
-    "Shifted Bottom (3x2)"
     (parse_simple_grid
        {|
         1 1 1
         1 1 1
         1 0 1
       |});
-  [%expect {||}]
+  [%expect
+    {|
+    |}]
 ;;

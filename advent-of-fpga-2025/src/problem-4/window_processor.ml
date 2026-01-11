@@ -144,12 +144,24 @@ module Make (Cfg : Config) (Sw : Sliding_window_intf.S) = struct
               [ reading_col_idx <--. 0; reading_row_idx <-- next_row_idx ]
           ]
       in
+      let count =
+        proc
+          [ when_ result_wire.valid [ total_count <-- total_count.value +: result_count ]
+          ]
+      in
+      let reset =
+        proc
+          [ total_count <--. 0
+          ; reading_row_idx <--. 0
+          ; reading_col_idx <--. 0
+          ; row_size <--. 0
+          ; col_size <--. 0
+          ]
+      in
       compile
         [ sm.switch
             [ ( Idle
-              , [ total_count <--. 0
-                ; reading_row_idx <--. 0
-                ; reading_col_idx <--. 0
+              , [ reset
                 ; when_
                     inputs.start
                     [ row_size <-- inputs.row_size
@@ -160,12 +172,15 @@ module Make (Cfg : Config) (Sw : Sliding_window_intf.S) = struct
             ; ( ReadInput
               , [ when_
                     inputs.data_in_valid
-                    [ update_read_idx; when_ last_input [ sm.set_next Flush ] ]
+                    [ update_read_idx; count; when_ last_input [ sm.set_next Flush ] ]
                 ] )
-            ; Flush, [ update_read_idx; when_ result_wire.last [ sm.set_next Finished ] ]
+            ; ( Flush
+              , [ update_read_idx
+                ; count
+                ; when_ result_wire.last [ sm.set_next Finished ]
+                ] )
             ; Finished, [ sm.set_next Idle ]
             ]
-        ; when_ result_wire.valid [ total_count <-- total_count.value +: result_count ]
         ]);
     let write_enable = enable &: sm.is ReadInput in
     let read_enable = enable &: (sm.is ReadInput |: sm.is Flush) in
