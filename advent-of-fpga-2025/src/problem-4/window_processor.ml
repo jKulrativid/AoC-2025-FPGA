@@ -132,8 +132,10 @@ module Make (Cfg : Config) (Sw : Sliding_window_intf.S) = struct
       ==: row_size.value
       &: (reading_col_idx.value +:. 1 ==: col_size.value)
     in
-    let result_wire = Sw.Result.map Sw.Result.port_widths ~f:wire in
-    let result_count = count result_wire.prev result_wire.d in
+    let result_from_sliding_window = Sw.Result.map Sw.Result.port_widths ~f:wire in
+    let result_count =
+      count result_from_sliding_window.prev result_from_sliding_window.d
+    in
     let total_count = Var.reg spec ~enable ~width:total_count_bit_width in
     Always.(
       let update_read_idx =
@@ -146,25 +148,21 @@ module Make (Cfg : Config) (Sw : Sliding_window_intf.S) = struct
       in
       let count =
         proc
-          [ when_ result_wire.valid [ total_count <-- total_count.value +: result_count ]
+          [ when_
+              result_from_sliding_window.valid
+              [ total_count <-- total_count.value +: result_count ]
           ]
       in
       let reset =
-        proc
-          [ total_count <--. 0
-          ; reading_row_idx <--. 0
-          ; reading_col_idx <--. 0
-          ; row_size <--. 0
-          ; col_size <--. 0
-          ]
+        proc [ total_count <--. 0; reading_row_idx <--. 0; reading_col_idx <--. 0 ]
       in
       compile
         [ sm.switch
             [ ( Idle
-              , [ reset
-                ; when_
+              , [ when_
                     inputs.start
-                    [ row_size <-- inputs.row_size
+                    [ reset
+                    ; row_size <-- inputs.row_size
                     ; col_size <-- inputs.col_size
                     ; sm.set_next ReadInput
                     ]
@@ -177,7 +175,7 @@ module Make (Cfg : Config) (Sw : Sliding_window_intf.S) = struct
             ; ( Flush
               , [ update_read_idx
                 ; count
-                ; when_ result_wire.last [ sm.set_next Finished ]
+                ; when_ result_from_sliding_window.last [ sm.set_next Finished ]
                 ] )
             ; Finished, [ sm.set_next Idle ]
             ]
@@ -205,15 +203,23 @@ module Make (Cfg : Config) (Sw : Sliding_window_intf.S) = struct
         ()
     in
     let data_in = Array.(append buffered_rows (of_list [ data_in_cell ])) in
-    let { Sw.O.data_out = _; result = result_next } =
+    let sliding_window =
       Sw.create scope { Sw.I.clear = inputs.clear; clock = inputs.clock; enable; data_in }
     in
-    Sw.Result.iter2 result_wire result_next ~f:assign;
-    let result = Sw.Result.map result_next ~f:(reg spec ~enable) in
-    { data_out = result.d
-    ; data_out_valid = result.valid
+    Sw.Result.iter2 result_from_sliding_window sliding_window.result ~f:assign;
+    let masked_result
+          (* Output Guarding:
+       We mask the output with 'idle' to ensure that 'valid' and 'last' 
+       snap to 0 immediately when the FSM finishes, preventing the 
+       last value from sticking on the wires during the Idle state. *)
+      =
+      Sw.Result.map sliding_window.result ~f:(fun s ->
+        reg spec ~enable s |> mux2 idle (zero (width s)))
+    in
+    { data_out = masked_result.d
+    ; data_out_valid = masked_result.valid
     ; idle
-    ; last = result.last
+    ; last = masked_result.last
     ; ready
     ; total_count = total_count.value
     }
