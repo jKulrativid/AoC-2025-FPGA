@@ -48,6 +48,7 @@ clarifying: the "simplified code" should
 - 1st problem (day 4): try self-testing and re-routing (horribly complicated only if we have time).
 - 1st problem (day 4): create a transpose logic (where ?) so that for 6x100 we require forklift with width = 3 instead of 100 !!!
 - explicitly write about how great (and undocumented) Of_signal.pack/unpack is
+- the processor can be chained simply if we make it monoid
 
 formatting dune file
 

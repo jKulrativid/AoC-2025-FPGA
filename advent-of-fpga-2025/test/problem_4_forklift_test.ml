@@ -4,7 +4,11 @@ open Problem_4
 open Hardcaml_waveterm
 include Util
 module Problem_4_Config = Problem_4.Config
-module Forklift = Forklift.Make ()
+
+(* TODO: refactor this init *)
+module Forklift = Forklift.Make (struct
+    let data_bit_width = 1
+  end)
 
 (* TODO: verify that setting enable=0 actually stops the circuit entirely *)
 

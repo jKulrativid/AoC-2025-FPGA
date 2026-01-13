@@ -3,10 +3,10 @@ open Hardcaml
 
 module type S = Sliding_window_intf.S
 
-module Make () : S = struct
+module Make (Cfg : Sliding_window_intf.Config) : S = struct
   let kernel_row_size = 3
   let kernel_col_size = 3
-  let data_bit_width = 1 (* TODO: this should be configurable to support vectorization *)
+  let data_bit_width = Cfg.data_bit_width
   let result_bit_width = 1
 
   let latency =

@@ -1,6 +1,10 @@
 open! Base
 open Hardcaml
 
+module type Config = sig
+  val data_bit_width : int
+end
+
 module type S = sig
   val kernel_row_size : int
   val kernel_col_size : int
@@ -53,5 +57,5 @@ module type S = sig
 end
 
 module type Sliding_window = sig
-  module Make () : S
+  module Make (_ : Config) : S
 end

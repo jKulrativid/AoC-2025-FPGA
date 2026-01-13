@@ -21,13 +21,17 @@ let parse_simple_grid str : int list list =
 let run_test_case ?(print_waves = false) (case_name : string) (grid : int list list) =
   let rows = List.length grid in
   let cols = List.length (List.hd_exn grid) in
-  let module Cfg = struct
+  let module Forklift_cfg : Sliding_window_intf.Config = struct
+    let data_bit_width = 1
+  end
+  in
+  let module Window_processor_cfg = struct
     let input_row_bit_width = 16
     let input_col_bit_width = 16
   end
   in
-  let module Sliding_window = Forklift.Make () in
-  let module Dut = Window_processor.Make (Cfg) (Sliding_window) in
+  let module Sliding_window = Forklift.Make (Forklift_cfg) in
+  let module Dut = Window_processor.Make (Window_processor_cfg) (Sliding_window) in
   let module Sim = Cyclesim.With_interface (Dut.I) (Dut.O) in
   let sim = Sim.create (Dut.create (Scope.create ~flatten_design:true ())) in
   let waves, sim = Waveform.create sim in
@@ -67,7 +71,7 @@ let run_test_case ?(print_waves = false) (case_name : string) (grid : int list l
       next_cycle sim;
       drain (limit - 1))
   in
-  drain ((rows * cols * 4) + 10);
+  drain ((rows * cols * 4) + 10) (* MAGIC! *);
   let result = Bits.to_int !(o.total_count) in
   Stdio.printf "%s: %d\n" case_name result;
   next_cycle
