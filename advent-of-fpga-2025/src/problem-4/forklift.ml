@@ -27,7 +27,7 @@ module Make (Cfg : Sliding_window_intf.Config) : S = struct
     type 'a t =
       { d : 'a [@bits data_bit_width]
       ; last : 'a
-      ; valid : 'a (* TODO: consider removing this field *)
+      ; valid : 'a
       ; top : 'a
       ; bottom : 'a
       ; left : 'a
