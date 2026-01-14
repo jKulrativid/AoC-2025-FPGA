@@ -30,7 +30,7 @@ module Make (Cfg : Config) (Sw : Sliding_window_intf.S) = struct
       ; clock : 'a
       ; col_size : 'a [@bits Cfg.input_col_bit_width]
       ; enable : 'a
-      ; data_in : 'a [@bits Sw.data_bit_width]
+      ; data_in : 'a [@bits Sw.data_vector_size]
       ; data_in_valid : 'a
       ; row_size : 'a [@bits Cfg.input_row_bit_width]
       ; start : 'a

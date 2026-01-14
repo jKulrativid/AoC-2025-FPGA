@@ -2,13 +2,13 @@ open! Base
 open Hardcaml
 
 module type Config = sig
-  val data_bit_width : int
+  val data_vector_size : int
 end
 
 module type S = sig
   val kernel_row_size : int
   val kernel_col_size : int
-  val data_bit_width : int
+  val data_vector_size : int
   val result_bit_width : int
   val latency : int
 

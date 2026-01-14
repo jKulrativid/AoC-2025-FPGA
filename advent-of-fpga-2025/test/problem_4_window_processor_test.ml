@@ -22,7 +22,7 @@ let run_test_case ?(print_waves = false) (case_name : string) (grid : int list l
   let rows = List.length grid in
   let cols = List.length (List.hd_exn grid) in
   let module Forklift_cfg : Sliding_window_intf.Config = struct
-    let data_bit_width = 1
+    let data_vector_size = 1
   end
   in
   let module Window_processor_cfg = struct

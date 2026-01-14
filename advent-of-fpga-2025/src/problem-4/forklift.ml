@@ -6,7 +6,7 @@ module type S = Sliding_window_intf.S
 module Make (Cfg : Sliding_window_intf.Config) : S = struct
   let kernel_row_size = 3
   let kernel_col_size = 3
-  let data_bit_width = Cfg.data_bit_width
+  let data_vector_size = Cfg.data_vector_size
   let result_bit_width = 1
 
   let latency =
@@ -14,8 +14,6 @@ module Make (Cfg : Sliding_window_intf.Config) : S = struct
     let output_register = 1 in
     regs_between_input_to_middle_count + output_register
   ;;
-
-  let neighbors_count_bit_width = Int.ceil_log2 ((kernel_row_size * kernel_col_size) + 1)
 
   (* Grid-related variables *)
   let grid_middle_row_idx = (kernel_row_size - 1) / 2
@@ -25,7 +23,7 @@ module Make (Cfg : Sliding_window_intf.Config) : S = struct
 
   module Cell = struct
     type 'a t =
-      { d : 'a [@bits data_bit_width]
+      { d : 'a [@bits data_vector_size]
       ; last : 'a
       ; valid : 'a
       ; top : 'a
@@ -38,7 +36,7 @@ module Make (Cfg : Sliding_window_intf.Config) : S = struct
 
   module Result = struct
     type 'a t =
-      { prev : 'a [@bits data_bit_width]
+      { prev : 'a [@bits data_vector_size]
       ; d : 'a [@bits result_bit_width]
       ; last : 'a
       ; valid : 'a
@@ -83,28 +81,30 @@ module Make (Cfg : Sliding_window_intf.Config) : S = struct
 
   let create_mask (middle : _ Cell.t) =
     let open Signal in
+    let all_one = one data_vector_size in
+    let all_zero = zero data_vector_size in
     let row_mask =
       Array.init kernel_row_size ~f:(fun ri ->
         if ri = 0 then
-          ~:(middle.top)
+          mux2 middle.top all_zero all_one
         else if ri = grid_last_row_idx then
-          ~:(middle.bottom)
+          mux2 middle.bottom all_zero all_one
         else
-          vdd)
+          all_one)
     in
     let col_mask =
       Array.init kernel_col_size ~f:(fun ri ->
         if ri = 0 then
-          ~:(middle.left)
+          mux2 middle.left all_zero all_one
         else if ri = grid_last_col_idx then
-          ~:(middle.right)
+          mux2 middle.right all_zero all_one
         else
-          vdd)
+          all_one)
     in
     Array.mapi row_mask ~f:(fun ri r ->
       Array.mapi col_mask ~f:(fun ci c ->
         if ri = grid_middle_row_idx && ci = grid_middle_col_idx then
-          gnd
+          all_zero
         else
           r &: c))
   ;;
@@ -114,28 +114,40 @@ module Make (Cfg : Sliding_window_intf.Config) : S = struct
     let open Signal in
     let middle = grid.(grid_middle_row_idx).(grid_middle_col_idx) in
     let grid_mask = create_mask middle in
-    let count_col_neighbors_fn (c : _ array) : _ =
-      c
-      |> List.of_array
-      |> List.map ~f:(fun binary -> uresize binary neighbors_count_bit_width)
-      |> tree ~arity:2 ~f:(List.reduce_exn ~f:( +: ))
-    in
-    let masked_grid =
+    let masked_grid_data =
       Array.map2_exn grid grid_mask ~f:(fun r row_masks ->
         Array.map2_exn r row_masks ~f:(fun cell cell_mask -> cell_mask &: cell.d))
     in
-    let neighbors_count =
-      masked_grid
-      |> List.of_array
-      |> List.map ~f:count_col_neighbors_fn
-      |> tree ~arity:2 ~f:(fun r -> r |> List.reduce_exn ~f:( +: ))
+    (* TODO: elaborate this vectorization logic *)
+    let row_joined_grid_data =
+      Array.map masked_grid_data ~f:(fun r -> r |> Array.to_list |> concat_msb)
     in
-    let is_accessible = neighbors_count <:. 4 in
-    { Result.prev = middle.d
-    ; d = middle.d &: ~:is_accessible
-    ; last = middle.last
-    ; valid = middle.valid
-    }
+    let get_row_neighbors r =
+      (* for simplicity, row neighbors including itself (masked) *)
+      let middle_row_lsb = data_vector_size in
+      let middle_row_msb = (2 * data_vector_size) - 1 in
+      [| srl r 1; r; sll r 1 |]
+      |> Array.map ~f:(fun r -> select r middle_row_msb middle_row_lsb)
+    in
+    let neighbors_by_d =
+      row_joined_grid_data |> Array.map ~f:get_row_neighbors |> Array.concat_map ~f:Fn.id
+    in
+    let neighbor_count_by_d =
+      Array.init data_vector_size ~f:(fun i ->
+        let bit_idx =
+          data_vector_size - i - 1
+          (* TODO: elaborate this magic *)
+        in
+        Array.map neighbors_by_d ~f:(fun nb -> bit nb bit_idx)
+        |> Array.to_list
+        |> concat_msb
+        |> popcount)
+    in
+    let is_accessible =
+      Array.map neighbor_count_by_d ~f:(fun nc -> nc <:. 4) |> Array.to_list |> concat_msb
+    in
+    let result_d = middle.d &: ~:is_accessible in
+    { Result.prev = middle.d; d = result_d; last = middle.last; valid = middle.valid }
   ;;
 
   let create _scope (inputs : _ I.t) : _ O.t =

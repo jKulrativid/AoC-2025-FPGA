@@ -7,7 +7,7 @@ include Util
 module Test = struct
   (* This module test only 1-bit data width. *)
   module Forklift = Forklift.Make (struct
-      let data_bit_width = 1
+      let data_vector_size = 1
     end)
 
   (* TODO: verify that setting enable=0 actually stops the circuit entirely
@@ -34,7 +34,7 @@ module Test = struct
     let row_size, col_size =
       match String.split (List.hd_exn lines) ~on:' ' with
       | [ r; c ] -> Int.of_string r, Int.of_string c
-      | _ -> failwith "Header format must be: 'ROWS COLS BITWIDTH'"
+      | _ -> failwith "Header format must be: 'ROWS COLS'"
     in
     let grid_lines = List.tl_exn lines in
     (* parse grid *)
@@ -95,7 +95,6 @@ module Test = struct
   ;;
 
   let run_test_case (case_name : string) (test_input : int Forklift.Cell.t list list) =
-    let open Bits in
     let module Sim = Cyclesim.With_interface (Forklift.I) (Forklift.O) in
     let oc =
       concat_test_suite_and_case_name "" case_name |> to_vcd_dump |> Out_channel.create
@@ -106,10 +105,10 @@ module Test = struct
         let waves, sim = Waveform.create sim in
         let i = Cyclesim.inputs sim in
         let _o = Cyclesim.outputs sim in
-        i.enable := vdd;
-        i.clear := vdd;
+        i.enable := Bits.vdd;
+        i.clear := Bits.vdd;
         next_cycle sim;
-        i.clear := gnd;
+        i.clear := Bits.gnd;
         test_input
         |> List.iteri ~f:(fun _ inputs ->
           List.iteri inputs ~f:(fun data_in_idx data_in ->
@@ -142,7 +141,7 @@ module Test = struct
       ~finally:(fun () -> Out_channel.close oc)
   ;;
 
-  let%expect_test "Sliding Window 3x3 Logic (Refactored)" =
+  let%expect_test "1-bit width with 3x3 input" =
     run_test_case
       "all ones"
       (parse_explicit_grid
@@ -412,4 +411,18 @@ module Test = struct
     └──────────────────┘└──────────────────────────────────────┘
     |}]
   ;;
+
+  let%expect_test "8-bit vectorized" = ()
+  (*
+    run_test_case
+      "padded 10x10 table"
+      (parse_explicit_grid
+         {|
+        2 3
+        1,1,1  2,1,1  x
+        1,2,1  2,2,1  x
+        1,3,1  2,3,0  x
+      |});
+    [%expect {||}]
+  *)
 end
