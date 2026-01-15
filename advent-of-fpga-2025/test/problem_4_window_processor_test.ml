@@ -18,11 +18,16 @@ let parse_simple_grid str : int list list =
       | s -> Int.of_string s))
 ;;
 
-let run_test_case ?(print_waves = false) (case_name : string) (grid : int list list) =
+let run_test_case
+      ?(vector_size : int = 1)
+      ?(print_waves = false)
+      (case_name : string)
+      (grid : int list list)
+  =
   let rows = List.length grid in
   let cols = List.length (List.hd_exn grid) in
   let module Forklift_cfg : Sliding_window_intf.Config = struct
-    let data_vector_size = 1
+    let data_vector_size = vector_size
   end
   in
   let module Window_processor_cfg = struct
@@ -58,7 +63,7 @@ let run_test_case ?(print_waves = false) (case_name : string) (grid : int list l
           wait_for_ready (safety - 1))
       in
       wait_for_ready 100;
-      i.data_in := Bits.of_int ~width:1 pixel;
+      i.data_in := Bits.of_int ~width:Forklift_cfg.data_vector_size pixel;
       i.data_in_valid := Bits.vdd;
       next_cycle sim));
   i.data_in_valid := Bits.gnd;
@@ -437,5 +442,19 @@ let%expect_test "AoC Input" =
   run_test_case "AoC Day 4 Test Input (10x10)" (read_input "inputs/day4_test.txt");
   [%expect {| AoC Day 4 Test Input (10x10): 13 |}];
   run_test_case "AoC Day 4 Real Input (100x100)" (read_input "inputs/day4_real.txt");
+  [%expect {| AoC Day 4 Real Input (100x100): 1527 |}]
+;;
+
+let%expect_test "8-bits Vector AoC Input" =
+  let vector_size = 8 in
+  run_test_case
+    ~vector_size
+    "AoC Day 4 Test Input (10x10)"
+    (read_input ~vector_size "inputs/day4_test.txt");
+  [%expect {| AoC Day 4 Test Input (10x10): 13 |}];
+  run_test_case
+    ~vector_size
+    "AoC Day 4 Real Input (100x100)"
+    (read_input ~vector_size "inputs/day4_real.txt");
   [%expect {| AoC Day 4 Real Input (100x100): 1527 |}]
 ;;
