@@ -3,10 +3,15 @@ open Hardcaml
 open Problem_4
 open Hardcaml_waveterm
 include Util
-module Problem_4_Config = Problem_4.Config
 
 let run_test_case (suite_name : string) (case_name : string) (test_input : int list list) =
-  let module Sim = Cyclesim.With_interface (Solver.I) (Solver.O) in
+  let module Forklift_cfg : Sliding_window_intf.Config = struct
+    let data_vector_size = 16 (* hardcoded *)
+  end
+  in
+  let module Sw = Forklift.Make (Forklift_cfg) in
+  let module Dut = Solver.Make (Sw) in
+  let module Sim = Cyclesim.With_interface (Dut.I) (Dut.O) in
   let oc =
     concat_test_suite_and_case_name suite_name case_name
     |> to_vcd_dump
@@ -14,7 +19,7 @@ let run_test_case (suite_name : string) (case_name : string) (test_input : int l
   in
   Exn.protect
     ~f:(fun () ->
-      let sim = Vcd.wrap oc @@ Sim.create @@ Solver.create (Scope.create ()) in
+      let sim = Vcd.wrap oc @@ Sim.create @@ Dut.create (Scope.create ()) in
       let _waves, sim = Waveform.create sim in
       let i = Cyclesim.inputs sim in
       let o = Cyclesim.outputs sim in
@@ -25,8 +30,8 @@ let run_test_case (suite_name : string) (case_name : string) (test_input : int l
       in
       let num_rows = List.length test_input in
       let num_cols = List.length @@ List.hd_exn @@ test_input in
-      i.num_rows := Bits.of_int num_rows ~width:Problem_4_Config.row_bit_width;
-      i.num_cols := Bits.of_int num_cols ~width:Problem_4_Config.col_bit_width;
+      i.num_rows := Bits.of_int num_rows ~width:Dut.input_row_bit_width;
+      i.num_cols := Bits.of_int num_cols ~width:Dut.input_col_bit_width;
       i.data_valid := Bits.vdd;
       i.clear := Bits.gnd;
       next_cycle ~n:2 sim;

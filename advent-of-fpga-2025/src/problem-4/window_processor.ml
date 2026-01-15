@@ -12,6 +12,7 @@ module Make (Cfg : Config) (Sw : Sliding_window_intf.S) = struct
   let max_input_row_size = Int.pow 2 Cfg.input_row_bit_width
   let max_input_col_size = Int.pow 2 Cfg.input_col_bit_width
   let total_count_bit_width = Int.ceil_log2 ((max_input_col_size * max_input_row_size) + 1)
+  let data_vector_size = Sw.data_vector_size
 
   module Var = Always.Variable
 
