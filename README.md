@@ -23,7 +23,7 @@ dune runtest
 Generate Verilog File
 
 ```
-dune exec bin/gen_window_processor.exe > <YOUR FILE DESTINATION e.g. verilog/window_processor.v>
+dune exec bin/gen_window_processor.exe > [YOUR FILE DESTINATION e.g. verilog/window_processor.v]
 ```
 
 ## Architecture
