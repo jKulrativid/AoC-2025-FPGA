@@ -44,7 +44,8 @@ module Make (Cfg : Config) (Sw : Sliding_window_intf.S) = struct
       { data_out : 'a [@bits Sw.result_bit_width]
       ; data_out_valid : 'a
       ; idle : 'a
-      ; last : 'a
+      ; last_in : 'a
+      ; last_out : 'a
       ; ready : 'a
       ; total_count : 'a [@bits total_count_bit_width]
       }
@@ -181,7 +182,10 @@ module Make (Cfg : Config) (Sw : Sliding_window_intf.S) = struct
             ; Finished, [ sm.set_next Idle ]
             ]
         ]);
-    let write_enable = enable &: sm.is ReadInput in
+    let write_enable =
+      enable &: (sm.is ReadInput |: sm.is Flush)
+      (* NOTE: enable writing after*)
+    in
     let read_enable = enable &: (sm.is ReadInput |: sm.is Flush) in
     let data_in_cell =
       { Sw.Cell.d = inputs.data_in
@@ -220,7 +224,8 @@ module Make (Cfg : Config) (Sw : Sliding_window_intf.S) = struct
     { data_out = masked_result.d
     ; data_out_valid = masked_result.valid
     ; idle
-    ; last = masked_result.last
+    ; last_in = last_input
+    ; last_out = masked_result.last
     ; ready
     ; total_count = total_count.value
     }
