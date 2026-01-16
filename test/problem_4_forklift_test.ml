@@ -11,7 +11,12 @@ module Test (Forklift : Sliding_window_intf.S) = struct
 
   let int_of_binary s =
     String.fold s ~init:0 ~f:(fun acc c ->
-      (acc lsl 1) + if Char.equal c '1' then 1 else 0)
+      (acc lsl 1)
+      +
+      if Char.equal c '1' then
+        1
+      else
+        0)
   ;;
 
   let parse_explicit_grid str =
@@ -55,62 +60,78 @@ module Test (Forklift : Sliding_window_intf.S) = struct
              let d = int_of_binary bin_str in
              { Forklift.Cell.d
              ; valid = 1
-             ; last = (if r = row_size && c = col_size then 1 else 0)
-             ; top = (if r = 1 then 1 else 0)
-             ; bottom = (if r = row_size then 1 else 0)
-             ; left = (if c = 1 then 1 else 0)
-             ; right = (if c = col_size then 1 else 0)
+             ; last =
+                 (if r = row_size && c = col_size then
+                    1
+                  else
+                    0)
+             ; top =
+                 (if r = 1 then
+                    1
+                  else
+                    0)
+             ; bottom =
+                 (if r = row_size then
+                    1
+                  else
+                    0)
+             ; left =
+                 (if c = 1 then
+                    1
+                  else
+                    0)
+             ; right =
+                 (if c = col_size then
+                    1
+                  else
+                    0)
              }
            | _ -> failwith ("invalid token format: " ^ token))))
   ;;
 
-  let run_test_case (case_name : string) (test_input : int Forklift.Cell.t list list) =
+  let run_test_case (_case_name : string) (test_input : int Forklift.Cell.t list list) =
     let module Sim = Cyclesim.With_interface (Forklift.I) (Forklift.O) in
-    let oc =
-      concat_test_suite_and_case_name "" case_name |> to_vcd_dump |> Out_channel.create
-    in
-    Exn.protect
-      ~f:(fun () ->
-        let sim = Vcd.wrap oc @@ Sim.create @@ Forklift.create (Scope.create ()) in
-        let waves, sim = Waveform.create sim in
-        let i = Cyclesim.inputs sim in
-        let _o = Cyclesim.outputs sim in
-        i.enable := Bits.vdd;
-        i.clear := Bits.vdd;
-        next_cycle sim;
-        i.clear := Bits.gnd;
-        test_input
-        |> List.iteri ~f:(fun _ inputs ->
-          List.iteri inputs ~f:(fun data_in_idx data_in ->
-            let input_signals =
-              Forklift.Cell.map2 data_in Forklift.Cell.port_widths ~f:(fun v width ->
-                Bits.of_int v ~width)
-            in
-            let hardware_port = i.data_in.(data_in_idx) in
-            Forklift.Cell.iter2 hardware_port input_signals ~f:( := ));
-          next_cycle sim);
-        Array.iter i.data_in ~f:(fun cell ->
-          Forklift.Cell.iter2 cell Forklift.Cell.port_widths ~f:(fun p width ->
-            p := Bits.of_int ~width 0));
-        next_cycle sim ~n:Forklift.latency;
-        Waveform.print
-          ~wave_width:
-            (let ww = Int.ceil_log2 Forklift.data_vector_size in
-             if ww >= 1 then ww else 1)
-          ~signals_width:20
-          ~display_width:70
-          ~display_height:55
-          ~display_rules:
-            [ Display_rule.port_name_is "clock"
-            ; Display_rule.port_name_is "enable"
-            ; Display_rule.port_name_is "valid_out"
-            ; Display_rule.port_name_matches (Re.Posix.compile_pat "data_in.*d")
-            ; Display_rule.port_name_matches (Re.Posix.compile_pat "data_out.*d")
-            ; Display_rule.port_name_matches (Re.Posix.compile_pat "result")
-            ]
-          waves;
-        ())
-      ~finally:(fun () -> Out_channel.close oc)
+    let sim = Sim.create @@ Forklift.create (Scope.create ()) in
+    let waves, sim = Waveform.create sim in
+    let i = Cyclesim.inputs sim in
+    let _o = Cyclesim.outputs sim in
+    i.enable := Bits.vdd;
+    i.clear := Bits.vdd;
+    next_cycle sim;
+    i.clear := Bits.gnd;
+    test_input
+    |> List.iteri ~f:(fun _ inputs ->
+      List.iteri inputs ~f:(fun data_in_idx data_in ->
+        let input_signals =
+          Forklift.Cell.map2 data_in Forklift.Cell.port_widths ~f:(fun v width ->
+            Bits.of_int v ~width)
+        in
+        let hardware_port = i.data_in.(data_in_idx) in
+        Forklift.Cell.iter2 hardware_port input_signals ~f:( := ));
+      next_cycle sim);
+    Array.iter i.data_in ~f:(fun cell ->
+      Forklift.Cell.iter2 cell Forklift.Cell.port_widths ~f:(fun p width ->
+        p := Bits.of_int ~width 0));
+    next_cycle sim ~n:Forklift.latency;
+    Waveform.print
+      ~wave_width:
+        (let ww = Int.ceil_log2 Forklift.data_vector_size in
+         if ww >= 1 then
+           ww
+         else
+           1)
+      ~signals_width:20
+      ~display_width:70
+      ~display_height:55
+      ~display_rules:
+        [ Display_rule.port_name_is "clock"
+        ; Display_rule.port_name_is "enable"
+        ; Display_rule.port_name_is "valid_out"
+        ; Display_rule.port_name_matches (Re.Posix.compile_pat "data_in.*d")
+        ; Display_rule.port_name_matches (Re.Posix.compile_pat "data_out.*d")
+        ; Display_rule.port_name_matches (Re.Posix.compile_pat "result")
+        ]
+      waves
   ;;
 end
 

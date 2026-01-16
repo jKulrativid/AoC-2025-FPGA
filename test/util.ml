@@ -1,19 +1,6 @@
 open! Core
 open Hardcaml
 
-(* INFO: save .vcd to ~/tmp *)
-let get_home () =
-  match Sys.getenv "HOME" with
-  | Some path -> path
-  | None ->
-    (match Sys.getenv "USERPROFILE" with
-     | Some path -> path
-     | None -> ".")
-;;
-
-let testdump_dirname = Filename.concat (get_home ()) "/tmp"
-let to_vcd_dump file_name = Printf.sprintf "%s/%s.vcd" testdump_dirname file_name
-
 let next_cycle ?(n = 1) sim =
   for _ = 1 to n do
     Cyclesim.cycle sim

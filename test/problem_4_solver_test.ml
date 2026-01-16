@@ -17,47 +17,38 @@ let run_test_case
   let module Sw = Forklift.Make (Forklift_cfg) in
   let module Dut = Solver.Make (Sw) in
   let module Sim = Cyclesim.With_interface (Dut.I) (Dut.O) in
-  let oc =
-    concat_test_suite_and_case_name "solver-test" case_name
-    |> to_vcd_dump
-    |> Out_channel.create
+  let sim = Sim.create @@ Dut.create (Scope.create ()) in
+  let waves, sim = Waveform.create sim in
+  let i = Cyclesim.inputs sim in
+  let o = Cyclesim.outputs sim in
+  let rec run_until_finished sim =
+    if Bits.to_int !(o.finished) <> 1 then (
+      next_cycle sim;
+      run_until_finished sim)
   in
-  Exn.protect
-    ~f:(fun () ->
-      let sim = Vcd.wrap oc @@ Sim.create @@ Dut.create (Scope.create ()) in
-      let waves, sim = Waveform.create sim in
-      let i = Cyclesim.inputs sim in
-      let o = Cyclesim.outputs sim in
-      let rec run_until_finished sim =
-        if Bits.to_int !(o.finished) <> 1
-        then (
-          next_cycle sim;
-          run_until_finished sim)
-      in
-      let num_rows = List.length test_input in
-      let num_cols = List.length @@ List.hd_exn @@ test_input in
-      i.num_rows := Bits.of_int num_rows ~width:Dut.input_row_bit_width;
-      i.num_cols := Bits.of_int num_cols ~width:Dut.input_col_bit_width;
-      i.enable := Bits.vdd;
-      i.data_valid := Bits.vdd;
-      i.clear := Bits.gnd;
-      next_cycle ~n:2 sim;
-      let feed_input c =
-        i.data_in := Bits.of_int c ~width:Dut.data_vector_size;
-        i.data_valid := Bits.vdd;
-        next_cycle sim
-      in
-      List.iter test_input ~f:(fun r -> List.iter r ~f:feed_input);
-      i.data_in := Bits.gnd;
-      next_cycle ~n:30 sim;
-      i.data_valid := Bits.gnd;
-      run_until_finished sim;
-      let actual = Bits.to_int !(o.total_removed_paper_count) in
-      Stdio.printf "%s: %d\n" case_name actual;
-      if print_waves
-      then Waveform.print ~display_width:200 ~display_height:60 ~start_cycle:20 waves;
-      next_cycle sim)
-    ~finally:(fun () -> Out_channel.close oc)
+  let num_rows = List.length test_input in
+  let num_cols = List.length @@ List.hd_exn @@ test_input in
+  i.num_rows := Bits.of_int num_rows ~width:Dut.input_row_bit_width;
+  i.num_cols := Bits.of_int num_cols ~width:Dut.input_col_bit_width;
+  i.enable := Bits.vdd;
+  i.data_valid := Bits.vdd;
+  i.clear := Bits.gnd;
+  next_cycle ~n:2 sim;
+  let feed_input c =
+    i.data_in := Bits.of_int c ~width:Dut.data_vector_size;
+    i.data_valid := Bits.vdd;
+    next_cycle sim
+  in
+  List.iter test_input ~f:(fun r -> List.iter r ~f:feed_input);
+  i.data_in := Bits.gnd;
+  next_cycle ~n:30 sim;
+  i.data_valid := Bits.gnd;
+  run_until_finished sim;
+  let actual = Bits.to_int !(o.total_removed_paper_count) in
+  Stdio.printf "%s: %d\n" case_name actual;
+  if print_waves then
+    Waveform.print ~display_width:200 ~display_height:60 ~start_cycle:20 waves;
+  next_cycle sim
 ;;
 
 let%expect_test "AoC Day 4 Test Input (10x10)" =
