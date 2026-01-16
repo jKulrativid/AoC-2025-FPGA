@@ -89,7 +89,7 @@ module Test (Forklift : Sliding_window_intf.S) = struct
            | _ -> failwith ("invalid token format: " ^ token))))
   ;;
 
-  let run_test_case (_case_name : string) (test_input : int Forklift.Cell.t list list) =
+  let run_test_case (test_input : int Forklift.Cell.t list list) =
     let module Sim = Cyclesim.With_interface (Forklift.I) (Forklift.O) in
     let sim = Sim.create @@ Forklift.create (Scope.create ()) in
     let waves, sim = Waveform.create sim in
@@ -143,7 +143,6 @@ let%expect_test "1-bit width with 3x3 input" =
   in
   let module T = Test (Fl) in
   T.run_test_case
-    "all ones"
     (T.parse_explicit_grid
        {|
         3 3
@@ -210,7 +209,6 @@ let%expect_test "1-bit width with 3x3 input" =
     └──────────────────┘└────────────────────────────────────────────────┘
     |}];
   T.run_test_case
-    "diamond shape"
     (T.parse_explicit_grid
        {|
         3 3
@@ -277,7 +275,6 @@ let%expect_test "1-bit width with 3x3 input" =
     └──────────────────┘└────────────────────────────────────────────────┘
     |}];
   T.run_test_case
-    "2x3 grid"
     (T.parse_explicit_grid
        {|
         2 3
@@ -344,7 +341,6 @@ let%expect_test "1-bit width with 3x3 input" =
     └──────────────────┘└────────────────────────────────────────────────┘
     |}];
   T.run_test_case
-    "2x3 grid but bottom row is at the center row of data_in"
     (T.parse_explicit_grid
        {|
         2 3
@@ -420,7 +416,6 @@ let%expect_test "4-bit vector" =
   in
   let module T = Test (Fl) in
   T.run_test_case
-    "case 1"
     (T.parse_explicit_grid
        {|
         3 3
