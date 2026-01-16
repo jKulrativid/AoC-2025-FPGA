@@ -70,7 +70,7 @@ This project leverages OCaml's type system to ensure correctness before simulati
 1.  **Modular Functors:** The `Window_processor` is a generic functor, decoupling the data movement logic from the calculation logic (`Forklift`).
 2.  **Configuration as a Code:** Settings like `data_vector_size` are configurable rather than hardcoded.
 3.  **Minimal State:** The design avoids complex state machines in the data path, preferring counter-based control flow for predictability.
-4.  **Arithmetic Safety:** We strictly enforce **Additive Comparisons** (e.g., `idx + 1 < limit`) instead of subtraction (`idx < limit - 1`) to eliminate subtle unsigned integer underflow bugs during hardware generation.
+4.  **Arithmetic Safety:** We strictly enforce **Additive Comparisons** (e.g., `idx + 1 < limit`) instead of subtraction (`idx < limit - 1`) to eliminate subtle unsigned integer underflow bugs during runtime.
 
 ## Future Roadmap
 
