@@ -1,6 +1,6 @@
 # Advent of FPGA 2025: Hardcaml Solution
 
-A FPGA solution for **Problem 4 -- Printing Department** (both part), written in **Hardcaml**.
+A FPGA solution for **Problem 4 -- Printing Department** (both parts), written in **Hardcaml**.
 
 This project implements a parameterized **Sliding Window Processor** capable of handling grid sizes exceeding 100k rows.
 
