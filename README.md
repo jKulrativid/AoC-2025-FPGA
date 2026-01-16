@@ -47,7 +47,7 @@ The project is structured as a hardware generator library. The core logic for Pr
 │   └── main.ml                     # unimplemented RTL generator
 ├── src/
 │   └── problem-4/
-│       ├── window_processor.ml     # Read  (Line Buffers)
+│       ├── window_processor.ml     # Stream processor solving part I
 │       ├── forklift.ml             # 3x3 kernel
 │       ├── solver.ml               # Temporary circuit for solving part II
 │       └── sliding_window_intf.ml
