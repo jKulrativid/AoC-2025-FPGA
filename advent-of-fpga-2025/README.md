@@ -1,57 +1,67 @@
 # Advent of FPGA 2025
 
-## Theme
+## Topic Draft
 
-I aim to solve 3 problems (note for myself)
+### Overview
 
-- 1st problem will be engineering challenge regarding performance aspect (e.g. can we streamlined this? or can we partition this too?)
-- 2nd problem (TBD:)
-- 3rd problem I will try out-of-the-forth-wall solution.
+- I solve only problem 4 (both part 1 and 2), basically a subvariant of Convey's Game of Life
+- My goal is leverage Hardcaml's abstraction to make a type-safe, highly-configurable solution
+  that support a grid with more than 100k rows with the Kria board.
 
-Each solution should exploit FPGA superpower of pipelining and parallelism,
-and Hardcaml superpower of abstraction, type-safety, and human readability.
+### Architecture
 
-## Ultimate Goal
+<p align="center">
+  <img src="./doc-img/high-level-diagram.png" width="80%" alt="Window Processor Architecture">
+</p>
 
-leverage functional programming to simplify code while offering configurability
-that system verilog can be matched (e.g. List.map creating systolic array)
+- diagram 1 : overview
+- diagram 2 : sliding window + vectorization
+- diagram 3 : processor and its line buffer
+- diagram 4 : solver (brief)
 
-clarifying: the "simplified code" should
+### Optimization Technique Involved
 
-- allow programmer to construct or derive ASM chart and the circuit or schematic diagram,
-  making code as a single source of truth
-- apply software principle such as single responsibility helping verification
+- sideband metadata
+- store only what needed
+- circuit tree reduction (e.g. popcount and tree ~arity:2)
+- vectorization
 
-## NOTE
+### Software Engineering
 
-- On 1st problem: I accidentially see the near-optimal solution since the problem itself is a subclass of convey's game of life.
-  However, there is still a room for optimization such as partitioning or multiple model for solving trivial case (e.g. rows_count <= 2),
-  use load balancer to solve multiple grids in an embarrasingly parallelism manner or encode the input like zipping two rows so that we can solve the problem faster.
-  Btw, we need benchmarking for verifying the true bottleneck.
-- 1st problem: 2 things that substantially increase throughput and resource utilization are
-  vectorize the 3x3 grid convolutor and move data through DMA (use ram instead of BRAM/URAM).
-  However, the second one cannot works efficiently if not vectorized since AXIS DMA width is at least 8 bits (not sure but can read Xilinx user guide).
-- Maybe there is a place to use cuckoo caching via implementing redundancy in the stream so that each step contains enough information. e.g. problem that strictly requires linked list or your life will be much suffered.
-- Coding style inspiration : https://github.com/hardcamls/reedsolomon.
-- 2nd problem (day 12): systolic array seems to be great idea but vectorizing them is incredably complex.
-  However, since these problem is NP-hard then we don't have to encode or batch them like 1st problem.
-- 2nd problem: since it's NP-hard, why not try approximation algorithm in the FPGA
+- circuit-metadata safety & dep injection
+- use only add in the circuit, avoiding subtle underflow bug caused by subtraction
 
-## TODO ("make it right" step):
-
-- explain the test strategy and test structure
-- explain how i optimize for timing
-- 1st problem (day 4) can be further optimized with bit manipulation and popcount.
-  explain: store row with int register and then grid will be a list of integers.
-- 1st problem (day 4): implement horizontal parallelism and SerDes to reduce latency (exploiting embarrasingly parallelism)
-- 1st problem (day 4): explain how we exploit memory alignment to maximize resource utils (FF, BRAM, URAM if exists).
-- 1st problem (day 4): try self-testing and re-routing (horribly complicated only if we have time).
-- 1st problem (day 4): create a transpose logic (where ?) so that for 6x100 we require forklift with width = 3 instead of 100 !!!
-- explicitly write about how great (and undocumented) Of_signal.pack/unpack is
-- the processor can be chained simply if we make it monoid
-
-formatting dune file
-
-```sh
-dune format-dune-file <DUNE_FILE_PATH>
 ```
+    let total_ram_count = Sw.kernel_row_size - 1 in <-- This is ok since it's circuit generation.
+    let rptr =
+        mux2
+        (reading_col_idx <: col_size -:. 1) <-- But this is not OK, prone to integer underflowing!
+        (reading_col_idx +:. 1)
+        (zero Cfg.input_col_bit_width)
+    in
+    let no_underflow_rptr =
+        mux2
+        (reading_col_idx +:. 1 <: col_size) <-- Do this instead.
+        (reading_col_idx +:. 1)
+        (zero Cfg.input_col_bit_width)
+    in
+```
+
+- minimal state
+
+### Performance and Resource Utilization Analysis
+
+- TODO
+
+### Note
+
+- For solver, code quality is degraded since it's intended to use only for simulation.
+- You can find designed draft on paper in /xxx TODO: add picture of my design on paper
+
+### Future Improvements
+
+- "monoid circuit" for creating type-safe superpipeline
+- testbench need some refactoring
+- the unfinished TODO tasks in the codebase
+- heirarchical design (must be done before generating RTL code)
+- complex behavioral test e.g. enable pin
