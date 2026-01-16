@@ -2,7 +2,7 @@
 
 A FPGA solution for **Problem 4 -- Printing Department** (both part), written in **Hardcaml**.
 
-This project implements a parameterized **Sliding Window Processor** capable of handling grid sizes exceeding 100k rows, targeting the Xilinx Kria KR260.
+This project implements a parameterized **Sliding Window Processor** capable of handling grid sizes exceeding 100k rows.
 
 [Problem Link](https://adventofcode.com/2025/day/4)
 
