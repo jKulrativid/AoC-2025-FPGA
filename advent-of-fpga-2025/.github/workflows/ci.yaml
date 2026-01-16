@@ -1,0 +1,40 @@
+name: Hardcaml CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  build:
+    name: Build and Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup OCaml
+        uses: ocaml/setup-ocaml@v3
+        with:
+          ocaml-compiler: 5.2.x
+          dune-cache: true
+
+      - name: Add Jane Street Bleeding Edge Repo
+        run: |
+          opam repo add janestreet-bleeding https://ocaml.janestreet.com/opam-repository
+          opam update
+
+      - name: Install Dependencies
+        run: |
+          # Install dependencies defined in your .opam file
+          # --deps-only: Don't install the project itself yet
+          # --with-test: Include test dependencies (waveterm, etc.)
+          opam install . --deps-only --with-test
+
+      - name: Build
+        run: dune build
+
+      - name: Run Tests
+        run: dune runtest
