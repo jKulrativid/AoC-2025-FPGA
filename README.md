@@ -20,6 +20,12 @@ Run Tests
 dune runtest
 ```
 
+Generate Verilog File
+
+```
+dune exec bin/gen_window_processor.exe > <YOUR FILE DESTINATION e.g. verilog/window_processor.v>
+```
+
 ## Architecture
 
 ### Part I Solution
@@ -61,7 +67,7 @@ The project is structured as a hardware generator library. The core logic for Pr
 | :-------------------- | :---------------------------------------------------------------------------------------------------------------------- |
 | **Sideband Metadata** | Boundary flags (`top`, `last`, etc.) are precomputed and travel alongside data, minimizing states and counters.         |
 | **Tree Reduction**    | Combinational logic uses trees (e.g., `Signal.tree` and `Signal.popcount`) to achieve **O(log N)** critical path depth. |
-| **Vectorization**     | The engine processes multiple cells per clock cycle to saturate memory bandwidth.                                       |
+| **Vectorization**     | The engine processes multiple cells per clock cycle to maximize memory bandwidth.                                       |
 
 ## Engineering Principles
 

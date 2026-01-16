@@ -1,6 +1,13 @@
 (executable
- (public_name advent-of-fpga-2025)
- (name main)
- (libraries problem_4 core)
+ (name gen_window_processor)
+ (public_name gen_window_processor)
+ (libraries
+  core
+  core.command
+  core_unix.command_unix
+  jane_rope
+  hardcaml
+  hardcaml_circuits
+  problem_4)
  (preprocess
-  (pps ppx_jane ppx_hardcaml)))
+  (pps ppx_jane)))

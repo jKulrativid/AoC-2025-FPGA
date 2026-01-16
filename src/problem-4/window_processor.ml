@@ -208,7 +208,9 @@ module Make (Cfg : Config) (Sw : Sliding_window_intf.S) = struct
     in
     let data_in = Array.(append buffered_rows (of_list [ data_in_cell ])) in
     let sliding_window =
-      Sw.create scope { Sw.I.clear = inputs.clear; clock = inputs.clock; enable; data_in }
+      Sw.hierarchical
+        scope
+        { Sw.I.clear = inputs.clear; clock = inputs.clock; enable; data_in }
     in
     Sw.Result.iter2 result_from_sliding_window sliding_window.result ~f:assign;
     let masked_result
