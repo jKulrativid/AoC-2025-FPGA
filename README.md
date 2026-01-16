@@ -74,4 +74,5 @@ This project leverages OCaml's type system to ensure correctness before simulati
 
 ## Future Roadmap
 
+- make generated Verilog hierarchical (currently it's flat even though I passed `~flatten_design:false` flag into scope)
 - Full hardware-in-the-loop verification on the Kria KR260.
