@@ -74,6 +74,4 @@ This project leverages OCaml's type system to ensure correctness before simulati
 
 ## Future Roadmap
 
-- Implementation of a **Monoid Circuit** pattern for type-safe super-pipelining.
-- Hierarchical RTL generation (preserving module boundaries in Verilog output).
 - Full hardware-in-the-loop verification on the Kria KR260.
