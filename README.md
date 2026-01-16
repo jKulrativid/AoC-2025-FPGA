@@ -41,7 +41,9 @@ The core design is a **Streaming Processor** that operates on a continuous flow 
 
 ### Part II Workaround Component
 
-"While the core architecture is designed to scale via PS and DMA integration, the current challenge prioritizes simulation results. Consequently, I implemented a standalone iterative solver that wraps the processor in a FIFO feedback loop to drive the grid until it reaches a steady state."
+"While the core architecture is designed to scale via PS and DMA integration, the current challenge prioritizes simulation results.
+Consequently, I implemented a standalone iterative solver that wraps the processor in a FIFO feedback loop to drive the grid
+until it reaches a steady state (no 1'bit can be removed)."
 
 ## File Structure
 
