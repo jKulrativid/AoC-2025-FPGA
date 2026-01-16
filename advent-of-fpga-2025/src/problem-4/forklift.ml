@@ -159,4 +159,6 @@ module Make (Cfg : Sliding_window_intf.Config) : S = struct
     let result = Result.map result_next ~f:(reg spec ~enable:inputs.enable) in
     { O.data_out; result }
   ;;
+
+  (* TODO: implement "heirarchical" function *)
 end

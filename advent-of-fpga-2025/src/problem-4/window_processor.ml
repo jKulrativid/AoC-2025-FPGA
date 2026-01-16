@@ -230,4 +230,6 @@ module Make (Cfg : Config) (Sw : Sliding_window_intf.S) = struct
     ; total_count = total_count.value
     }
   ;;
+
+  (* TODO: implement "heirarchical" function *)
 end
