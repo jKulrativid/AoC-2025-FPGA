@@ -21,13 +21,13 @@ jobs:
           ocaml-compiler: 5.2.x
           dune-cache: true
 
-      - name: Add Jane Street Bleeding Edge Repo
+      - name: Update OPAM
         run: |
-          opam repo add janestreet-bleeding https://ocaml.janestreet.com/opam-repository
           opam update
 
       - name: Install Dependencies
         run: |
+          opam install dune
           # Install dependencies defined in your .opam file
           # --deps-only: Don't install the project itself yet
           # --with-test: Include test dependencies (waveterm, etc.)
