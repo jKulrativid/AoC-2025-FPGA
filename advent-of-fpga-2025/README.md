@@ -1,67 +1,79 @@
-# Advent of FPGA 2025
+# Advent of FPGA 2025: Hardcaml Solution
 
-## Topic Draft
+A FPGA solution for **Problem 4 -- Printing Department** (both part), written in **Hardcaml**.
 
-### Overview
+This project implements a parameterized **Sliding Window Processor** capable of handling grid sizes exceeding 100k rows, targeting the Xilinx Kria KR260.
 
-- I solve only problem 4 (both part 1 and 2), basically a subvariant of Convey's Game of Life
-- My goal is leverage Hardcaml's abstraction to make a type-safe, highly-configurable solution
-  that support a grid with more than 100k rows with the Kria board.
+[Problem Link](https://adventofcode.com/2025/day/4)
 
-### Architecture
+## Getting Started
+
+Install Dependencies
+
+```
+opam install . --deps-only --with-test
+```
+
+Run Tests
+
+```
+dune runtest
+```
+
+## Architecture
+
+### Part I Solution
 
 <p align="center">
   <img src="./doc-img/high-level-diagram.png" width="80%" alt="Window Processor Architecture">
 </p>
 
-- diagram 1 : overview
-- diagram 2 : sliding window + vectorization
-- diagram 3 : processor and its line buffer
-- diagram 4 : solver (brief)
+The core design is a **Streaming Processor** that operates on a continuous flow of grid cells without requiring a full frame buffer in the kernel.
 
-### Optimization Technique Involved
+- **Window Processor:** Manages `N-1` internal line buffers to generate a 3x3 (or NxN) grid for every clock cycle.
+- **Forklift:** A sliding window that implements the convolution-style logic.
 
-- sideband metadata
-- store only what needed
-- circuit tree reduction (e.g. popcount and tree ~arity:2)
-- vectorization
+### Part II Workaround Component
 
-### Software Engineering
+"While the core architecture is designed to scale via PS and DMA integration, the current challenge prioritizes simulation results. Consequently, I implemented a standalone iterative solver that wraps the processor in a FIFO feedback loop to drive the grid until it reaches a steady state."
 
-- circuit-metadata safety & dep injection
-- use only add in the circuit, avoiding subtle underflow bug caused by subtraction
+## File Structure
 
-```
-    let total_ram_count = Sw.kernel_row_size - 1 in <-- This is ok since it's circuit generation.
-    let rptr =
-        mux2
-        (reading_col_idx <: col_size -:. 1) <-- But this is not OK, prone to integer underflowing!
-        (reading_col_idx +:. 1)
-        (zero Cfg.input_col_bit_width)
-    in
-    let no_underflow_rptr =
-        mux2
-        (reading_col_idx +:. 1 <: col_size) <-- Do this instead.
-        (reading_col_idx +:. 1)
-        (zero Cfg.input_col_bit_width)
-    in
+The project is structured as a hardware generator library. The core logic for Problem 4 resides in `src/problem-4/`.
+
+```text
+.
+├── bin/
+│   └── main.ml                     # unimplemented RTL generator
+├── src/
+│   └── problem-4/
+│       ├── window_processor.ml     # Read  (Line Buffers)
+│       ├── forklift.ml             # 3x3 kernel
+│       ├── solver.ml               # Temporary circuit for solving part II
+│       └── sliding_window_intf.ml
+└── test/                           # Hardcaml simulation-based testbenches
+    └── inputs/                     # Test input files including ones provided by Advent of Code
 ```
 
-- minimal state
+## Key Optimizations
 
-### Performance and Resource Utilization Analysis
+| Technique             | Description                                                                                                             |
+| :-------------------- | :---------------------------------------------------------------------------------------------------------------------- |
+| **Sideband Metadata** | Boundary flags (`top`, `last`, etc.) are precomputed and travel alongside data, minimizing states and counters.         |
+| **Tree Reduction**    | Combinational logic uses trees (e.g., `Signal.tree` and `Signal.popcount`) to achieve **O(log N)** critical path depth. |
+| **Vectorization**     | The engine processes multiple pixels per clock cycle to saturate memory bandwidth.                                      |
 
-- TODO
+## Engineering Principles
 
-### Note
+This project leverages OCaml's type system to ensure correctness before simulation:
 
-- For solver, code quality is degraded since it's intended to use only for simulation.
-- You can find designed draft on paper in /xxx TODO: add picture of my design on paper
+1.  **Modular Functors:** The `Window_processor` is a generic functor, decoupling the data movement logic from the calculation logic (`Forklift`).
+2.  **Configuration as a Code:** Settings like `data_vector_size` are configurable rather than hardcoded.
+3.  **Minimal State:** The design avoids complex state machines in the data path, preferring counter-based control flow for predictability.
+4.  **Arithmetic Safety:** We strictly enforce **Additive Comparisons** (e.g., `idx + 1 < limit`) instead of subtraction (`idx < limit - 1`) to eliminate subtle unsigned integer underflow bugs during hardware generation.
 
-### Future Improvements
+## Future Roadmap
 
-- "monoid circuit" for creating type-safe superpipeline
-- testbench need some refactoring
-- the unfinished TODO tasks in the codebase
-- heirarchical design (must be done before generating RTL code)
-- complex behavioral test e.g. enable pin
+- Implementation of a **Monoid Circuit** pattern for type-safe super-pipelining.
+- Hierarchical RTL generation (preserving module boundaries in Verilog output).
+- Full hardware-in-the-loop verification on the Kria KR260.
