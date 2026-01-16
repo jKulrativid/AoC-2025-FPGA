@@ -11,12 +11,7 @@ module Test (Forklift : Sliding_window_intf.S) = struct
 
   let int_of_binary s =
     String.fold s ~init:0 ~f:(fun acc c ->
-      (acc lsl 1)
-      +
-      if Char.equal c '1' then
-        1
-      else
-        0)
+      (acc lsl 1) + if Char.equal c '1' then 1 else 0)
   ;;
 
   let parse_explicit_grid str =
@@ -60,31 +55,11 @@ module Test (Forklift : Sliding_window_intf.S) = struct
              let d = int_of_binary bin_str in
              { Forklift.Cell.d
              ; valid = 1
-             ; last =
-                 (if r = row_size && c = col_size then
-                    1
-                  else
-                    0)
-             ; top =
-                 (if r = 1 then
-                    1
-                  else
-                    0)
-             ; bottom =
-                 (if r = row_size then
-                    1
-                  else
-                    0)
-             ; left =
-                 (if c = 1 then
-                    1
-                  else
-                    0)
-             ; right =
-                 (if c = col_size then
-                    1
-                  else
-                    0)
+             ; last = (if r = row_size && c = col_size then 1 else 0)
+             ; top = (if r = 1 then 1 else 0)
+             ; bottom = (if r = row_size then 1 else 0)
+             ; left = (if c = 1 then 1 else 0)
+             ; right = (if c = col_size then 1 else 0)
              }
            | _ -> failwith ("invalid token format: " ^ token))))
   ;;
@@ -121,10 +96,7 @@ module Test (Forklift : Sliding_window_intf.S) = struct
         Waveform.print
           ~wave_width:
             (let ww = Int.ceil_log2 Forklift.data_vector_size in
-             if ww >= 1 then
-               ww
-             else
-               1)
+             if ww >= 1 then ww else 1)
           ~signals_width:20
           ~display_width:70
           ~display_height:55

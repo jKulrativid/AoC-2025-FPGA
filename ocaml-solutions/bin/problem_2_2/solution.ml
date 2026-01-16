@@ -38,15 +38,12 @@ let is_valid_id (id : string) : bool =
   let half_len = len / 2 in
   let is_invalid_id_at_window_size (window_size : int) : bool =
     let rec get_range_of_start (i : int) : int list =
-      if i + window_size = len then
-        []
-      else
-        i :: get_range_of_start (i + window_size)
+      if i + window_size = len then [] else i :: get_range_of_start (i + window_size)
     in
-    if window_size > half_len then
-      false
-    else if len mod window_size <> 0 then
-      false
+    if window_size > half_len
+    then false
+    else if len mod window_size <> 0
+    then false
     else (* TODO: better naming*)
       List.fold_left
         (fun is_valid idx ->
@@ -58,12 +55,11 @@ let is_valid_id (id : string) : bool =
   in
   (* TODO: use fold_left might be more explicit*)
   let rec is_invalid_at_some_window_size current_size =
-    if current_size = 0 then
-      true
-    else if is_invalid_id_at_window_size current_size then
-      false
-    else
-      is_invalid_at_some_window_size (current_size - 1)
+    if current_size = 0
+    then true
+    else if is_invalid_id_at_window_size current_size
+    then false
+    else is_invalid_at_some_window_size (current_size - 1)
   in
   is_invalid_at_some_window_size half_len
 ;;
@@ -71,12 +67,11 @@ let is_valid_id (id : string) : bool =
 let get_sum_invalid_ids_from_id_range (start : string) (_end : string) : int =
   let stop = str_inc _end in
   let rec iterate (current_id : string) : int =
-    if current_id = stop then
-      0
-    else if is_valid_id current_id then
-      iterate (str_inc current_id)
-    else
-      int_of_string current_id + iterate (str_inc current_id)
+    if current_id = stop
+    then 0
+    else if is_valid_id current_id
+    then iterate (str_inc current_id)
+    else int_of_string current_id + iterate (str_inc current_id)
   in
   iterate start
 ;;

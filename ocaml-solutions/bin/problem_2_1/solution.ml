@@ -34,12 +34,11 @@ let is_valid_id (id : string) : bool =
 let get_sum_invalid_ids_from_id_range (start : string) (_end : string) : int =
   let stop = str_inc _end in
   let rec iterate (current_id : string) : int =
-    if current_id = stop then
-      0
-    else if is_valid_id current_id then
-      iterate (str_inc current_id)
-    else
-      int_of_string current_id + iterate (str_inc current_id)
+    if current_id = stop
+    then 0
+    else if is_valid_id current_id
+    then iterate (str_inc current_id)
+    else int_of_string current_id + iterate (str_inc current_id)
   in
   iterate start
 ;;

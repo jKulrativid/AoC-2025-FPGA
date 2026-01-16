@@ -54,10 +54,9 @@ let run_test_case
   List.iter grid ~f:(fun row ->
     List.iter row ~f:(fun pixel ->
       let rec wait_for_ready safety =
-        if safety = 0 then
-          failwith "Timeout waiting for Ready";
-        if Bits.to_bool !(o.ready) then
-          ()
+        if safety = 0 then failwith "Timeout waiting for Ready";
+        if Bits.to_bool !(o.ready)
+        then ()
         else (
           next_cycle sim;
           wait_for_ready (safety - 1))
@@ -68,10 +67,9 @@ let run_test_case
       next_cycle sim));
   i.data_in_valid := Bits.gnd;
   let rec drain limit =
-    if limit = 0 then
-      failwith "Timeout draining pipeline";
-    if Bits.to_bool !(o.last_out) then
-      ()
+    if limit = 0 then failwith "Timeout draining pipeline";
+    if Bits.to_bool !(o.last_out)
+    then ()
     else (
       next_cycle sim;
       drain (limit - 1))
@@ -82,7 +80,8 @@ let run_test_case
   next_cycle
     ~n:3
     sim (* sim 3 cycle to check the behavior with circuit become idle again *);
-  if print_waves then
+  if print_waves
+  then
     let open Display_rule in
     let rules =
       [ port_name_is "clock"

@@ -17,7 +17,8 @@ let%expect_test "PWM unit test" =
     reset_state ();
     List.iteri expected_by_clock ~f:(fun clock_cycle_idx expected_output ->
       let actual_output = Bits.to_int !(o.output) in
-      if actual_output <> expected_output then
+      if actual_output <> expected_output
+      then
         Stdio.printf
           "FAIL: DutyCycle=%d Cycle=%d -> Got %d (Expected %d)\n"
           duty_cycle

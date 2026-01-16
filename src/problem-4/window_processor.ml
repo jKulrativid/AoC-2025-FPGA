@@ -60,13 +60,15 @@ module Make (Cfg : Config) (Sw : Sliding_window_intf.S) = struct
   ;;
 
   (** Creates a cascade of Line Buffers (RAMs) to store previous image rows.
-      
-      Returns the buffered rows ordered from **Oldest (Top)** to **Newest (Bottom-1)**.
-      
-      Data Path:  [data_in] -> [RAM_N-1] -> ... -> [RAM_0]
-      List Order: [ RAM_0; RAM_1; ...; RAM_N-1 ]
 
-      Note: The result does NOT include the current [data_in]. You must append it manually. *)
+      Returns the buffered rows ordered from **Oldest (Top)** to **Newest
+      (Bottom-1)**.
+
+      Data Path: [data_in] -> [RAM_N-1] -> ... -> [RAM_0] List Order:
+      [ RAM_0; RAM_1; ...; RAM_N-1 ]
+
+      Note: The result does NOT include the current [data_in]. You must append
+      it manually. *)
   let create_line_buffers
         ~clock
         ~write_enable
@@ -182,10 +184,7 @@ module Make (Cfg : Config) (Sw : Sliding_window_intf.S) = struct
             ; Finished, [ sm.set_next Idle ]
             ]
         ]);
-    let write_enable =
-      enable &: (sm.is ReadInput |: sm.is Flush)
-      (* NOTE: enable writing after*)
-    in
+    let write_enable = enable &: (sm.is ReadInput |: sm.is Flush) in
     let read_enable = enable &: (sm.is ReadInput |: sm.is Flush) in
     let data_in_cell =
       { Sw.Cell.d = inputs.data_in
@@ -231,5 +230,8 @@ module Make (Cfg : Config) (Sw : Sliding_window_intf.S) = struct
     }
   ;;
 
-  (* TODO: implement "heirarchical" function *)
+  let hierarchical scope (input : Signal.t I.t) =
+    let module H = Hierarchy.In_scope (I) (O) in
+    H.create ~scope ~name:"window_processor" create input
+  ;;
 end

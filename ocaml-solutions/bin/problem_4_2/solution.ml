@@ -28,20 +28,12 @@ let is_paper_accessible
       | _, c when c < 0 || c >= cols_count -> false
       | r, c -> Char.equal grid.(r).(c) '@')
   in
-  if adjacent_papers_count < 4 then
-    true
-  else
-    false
+  if adjacent_papers_count < 4 then true else false
 ;;
 
 let remove_accessible_papers (grid : char array array) : int * char array array =
   let rows_count = Array.length grid in
-  let cols_count =
-    if rows_count = 0 then
-      0
-    else
-      Array.length grid.(0)
-  in
+  let cols_count = if rows_count = 0 then 0 else Array.length grid.(0) in
   Array.fold_mapi grid ~init:0 ~f:(fun r acc row ->
     let row_removed_papers_count, row =
       Array.fold_mapi row ~init:0 ~f:(fun c acc col ->

@@ -1,6 +1,6 @@
 (executable
  (public_name advent-of-fpga-2025)
  (name main)
- (libraries problem_4 core )
+ (libraries problem_4 core)
  (preprocess
   (pps ppx_jane ppx_hardcaml)))

@@ -85,21 +85,19 @@ module Make (Cfg : Sliding_window_intf.Config) : S = struct
     let all_zeros = zero data_vector_size in
     let row_mask =
       Array.init kernel_row_size ~f:(fun ri ->
-        if ri = 0 then
-          mux2 middle.top all_zeros all_ones
-        else if ri = grid_last_row_idx then
-          mux2 middle.bottom all_zeros all_ones
-        else
-          all_ones)
+        if ri = 0
+        then mux2 middle.top all_zeros all_ones
+        else if ri = grid_last_row_idx
+        then mux2 middle.bottom all_zeros all_ones
+        else all_ones)
     in
     let col_mask =
       Array.init kernel_col_size ~f:(fun ci ->
-        if ci = 0 then
-          mux2 middle.left all_zeros all_ones
-        else if ci = grid_last_col_idx then
-          mux2 middle.right all_zeros all_ones
-        else
-          all_ones)
+        if ci = 0
+        then mux2 middle.left all_zeros all_ones
+        else if ci = grid_last_col_idx
+        then mux2 middle.right all_zeros all_ones
+        else all_ones)
     in
     Array.map row_mask ~f:(fun r -> Array.map col_mask ~f:(fun c -> r &: c))
   ;;
@@ -120,10 +118,9 @@ module Make (Cfg : Sliding_window_intf.Config) : S = struct
       (* for simplicity, row neighbors including itself (masked) *)
       let middle_row_lsb = data_vector_size in
       let middle_row_msb = (2 * data_vector_size) - 1 in
-      (if ri = grid_middle_row_idx then
-         [| srl r 1; sll r 1 |]
-       else
-         [| srl r 1; r; sll r 1 |])
+      (if ri = grid_middle_row_idx
+       then [| srl r 1; sll r 1 |]
+       else [| srl r 1; r; sll r 1 |])
       |> Array.map ~f:(fun r -> select r middle_row_msb middle_row_lsb)
     in
     let neighbors_by_d =
@@ -160,5 +157,8 @@ module Make (Cfg : Sliding_window_intf.Config) : S = struct
     { O.data_out; result }
   ;;
 
-  (* TODO: implement "heirarchical" function *)
+  let hierarchical scope (input : Signal.t I.t) =
+    let module H = Hierarchy.In_scope (I) (O) in
+    H.create ~scope ~name:"forklift" create input
+  ;;
 end

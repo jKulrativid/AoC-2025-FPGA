@@ -31,12 +31,7 @@ let count_adjacent_papers
 let solve () =
   let grid = read_grid () in
   let rows_count = Array.length grid in
-  let cols_count =
-    if rows_count = 0 then
-      0
-    else
-      Array.length grid.(0)
-  in
+  let cols_count = if rows_count = 0 then 0 else Array.length grid.(0) in
   print_grid grid;
   let iter_grid g =
     Array.foldi g ~init:0 ~f:(fun r ac row ->
@@ -45,10 +40,7 @@ let solve () =
         match col with
         | '@' ->
           let papers_count = count_adjacent_papers grid r c rows_count cols_count in
-          if papers_count < 4 then
-            ac + 1
-          else
-            ac
+          if papers_count < 4 then ac + 1 else ac
         | _ -> ac))
   in
   iter_grid grid |> Int.to_string |> print_endline

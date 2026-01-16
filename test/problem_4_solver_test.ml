@@ -29,7 +29,8 @@ let run_test_case
       let i = Cyclesim.inputs sim in
       let o = Cyclesim.outputs sim in
       let rec run_until_finished sim =
-        if Bits.to_int !(o.finished) <> 1 then (
+        if Bits.to_int !(o.finished) <> 1
+        then (
           next_cycle sim;
           run_until_finished sim)
       in
@@ -53,8 +54,8 @@ let run_test_case
       run_until_finished sim;
       let actual = Bits.to_int !(o.total_removed_paper_count) in
       Stdio.printf "%s: %d\n" case_name actual;
-      if print_waves then
-        Waveform.print ~display_width:200 ~display_height:60 ~start_cycle:20 waves;
+      if print_waves
+      then Waveform.print ~display_width:200 ~display_height:60 ~start_cycle:20 waves;
       next_cycle sim)
     ~finally:(fun () -> Out_channel.close oc)
 ;;

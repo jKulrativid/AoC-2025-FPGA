@@ -14,10 +14,9 @@ module Problem_4 = struct
       |> List.map ~f:(fun chunk ->
         let len = List.length chunk in
         let chunk =
-          if len < vector_size then
-            chunk @ List.init (vector_size - len) ~f:(Fn.const 0)
-          else
-            chunk
+          if len < vector_size
+          then chunk @ List.init (vector_size - len) ~f:(Fn.const 0)
+          else chunk
         in
         List.fold chunk ~init:0 ~f:(fun acc b -> (acc lsl 1) lor b)))
   ;;
