@@ -1,12 +1,6 @@
 (executable
  (name gen_window_processor)
  (public_name gen_window_processor)
- (libraries
-  core
-  core.command
-  core_unix.command_unix
-  jane_rope
-  hardcaml
-  problem_4)
+ (libraries core core.command core_unix.command_unix hardcaml problem_4)
  (preprocess
   (pps ppx_jane)))
