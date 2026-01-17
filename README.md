@@ -26,6 +26,17 @@ Generate Verilog File
 dune exec bin/gen_window_processor.exe > [YOUR FILE DESTINATION e.g. verilog/window_processor.v]
 ```
 
+## Solution Overview
+
+The biggest bottleneck on FPGAs is running out of block RAM (BRAM) when reading the entire grid.
+My design gets around this by acting like a sliding window. Instead of storing the whole frame,
+we only keep the absolute minimum history needed, specifically $(N-1) \times R$ rows, or two rows
+for our problem, with a 6-bit metadata overhead for each row.
+
+Since the DMA delivers data in wide chunks anyway, I vectorized the processing logic to match that width perfectly.
+This means the design is completely **streaming**. Because we never store the full vertical frame, this core can theoretically process
+an image with an infinite column height forever, as long as you can store $(N-1) \times R$ rows with overhead inside BRAM.
+
 ## Architecture
 
 ### Part I Solution
@@ -82,5 +93,7 @@ This project leverages OCaml's type system to ensure correctness before simulati
 
 ## Future Roadmap
 
-- make generated Verilog hierarchical (currently it's flat even though I passed `~flatten_design:false` flag into scope)
+- implement tests on control flag like `enable`, verifying it's really working as we expected
+- make generated Verilog hierarchical (currently it's flat even though I implemented `hierarchical` circuit constructor
+  and explicitly passed `~flatten_design:false` flag when creating scope)
 - Full hardware-in-the-loop verification on the Kria KR260.
